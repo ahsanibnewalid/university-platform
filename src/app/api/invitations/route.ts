@@ -8,14 +8,13 @@ import {
 } from "@/lib/auth";
 import {
   administrativeRoles,
+  inviteableCampusRoles,
   readJsonObject,
   recordAudit,
   requiredText,
 } from "@/lib/api";
 import { sendAccountEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
-
-const inviteableRoles = Object.values(CampusRole);
 
 export async function GET() {
   try {
@@ -53,7 +52,7 @@ export async function POST(request: Request) {
     }
     const role =
       typeof input.role === "string" &&
-      inviteableRoles.includes(input.role as CampusRole)
+      inviteableCampusRoles.includes(input.role as CampusRole)
         ? (input.role as CampusRole)
         : null;
     if (!role) throw new AuthenticationError("Select a valid campus role.", 400);

@@ -7,6 +7,8 @@ import {
 } from "@/lib/auth";
 import {
   isPrismaUniqueError,
+  courseTeachingRoles,
+  departmentRoles,
   readJsonObject,
   recordAudit,
   requiredText,
@@ -44,9 +46,11 @@ export async function GET() {
               term: { institutionId },
               enrollments: { some: { studentId: userId, status: EnrollmentStatus.ENROLLED } },
             }
-          : role === CampusRole.FACULTY
+          : courseTeachingRoles.includes(role)
             ? { term: { institutionId }, instructors: { some: { userId } } }
-            : { term: { institutionId } };
+            : departmentRoles.includes(role)
+              ? { term: { institutionId }, course: { department: { chairId: userId } } }
+              : { term: { institutionId } };
     const sections = await prisma.courseSection.findMany({
       where,
       include: {
@@ -89,7 +93,7 @@ export async function POST(request: Request) {
       where: {
         id: departmentId,
         institutionId,
-        ...(session.membership.role === CampusRole.DEPARTMENT_CHAIR
+        ...(departmentRoles.includes(session.membership.role)
           ? { chairId: session.userId }
           : {}),
       },
@@ -132,7 +136,7 @@ export async function POST(request: Request) {
             sectionCode,
             room: typeof input.room === "string" ? input.room.slice(0, 100) : null,
             instructors:
-              session.membership.role === CampusRole.FACULTY
+              courseTeachingRoles.includes(session.membership.role)
                 ? { create: { userId: session.userId } }
                 : undefined,
           },

@@ -1,4 +1,3 @@
-import { CampusRole } from "@prisma/client";
 import {
   AuthenticationError,
   authErrorResponse,
@@ -6,6 +5,7 @@ import {
   requireSession,
 } from "@/lib/auth";
 import {
+  departmentRoles,
   administrativeRoles,
   readJsonObject,
   recordAudit,
@@ -19,6 +19,7 @@ export async function GET() {
     const departments = await prisma.department.findMany({
       where: { institutionId: session.membership.institutionId },
       include: {
+        faculty: { select: { id: true, code: true, name: true } },
         chair: { select: { id: true, name: true } },
         programs: { select: { id: true, code: true, name: true, level: true } },
         _count: { select: { courses: true } },
@@ -35,17 +36,33 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
-    const session = await requireSession(administrativeRoles);
+    const session = await requireSession([...administrativeRoles, ...departmentRoles]);
     const input = await readJsonObject(request);
     const name = requiredText(input.name, "Department name", 2, 120);
     const code = requiredText(input.code, "Department code", 2, 16).toUpperCase();
-    let chairId: string | undefined;
-    if (typeof input.chairId === "string" && input.chairId) {
+    const facultyId =
+      typeof input.facultyId === "string" && input.facultyId
+        ? input.facultyId
+        : undefined;
+    if (
+      facultyId &&
+      !(await prisma.faculty.findFirst({
+        where: { id: facultyId, institutionId: session.membership.institutionId },
+        select: { id: true },
+      }))
+    ) {
+      throw new AuthenticationError("Faculty not found at this university.", 404);
+    }
+    let chairId: string | undefined =
+      departmentRoles.includes(session.membership.role)
+        ? session.userId
+        : undefined;
+    if (!chairId && typeof input.chairId === "string" && input.chairId) {
       const chairMembership = await prisma.membership.findFirst({
         where: {
           userId: input.chairId,
           institutionId: session.membership.institutionId,
-          role: CampusRole.DEPARTMENT_CHAIR,
+          role: { in: departmentRoles },
           status: "ACTIVE",
         },
         select: { userId: true },
@@ -61,6 +78,7 @@ export async function POST(request: Request) {
     const department = await prisma.department.create({
       data: {
         institutionId: session.membership.institutionId,
+        facultyId,
         name,
         code,
         chairId,

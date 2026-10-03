@@ -5,7 +5,14 @@ import {
   assertSameOrigin,
   requireSession,
 } from "@/lib/auth";
-import { readJsonObject, recordAudit, requiredText } from "@/lib/api";
+import {
+  courseTeachingRoles,
+  departmentRoles,
+  readJsonObject,
+  recordAudit,
+  requiredText,
+  teachingRoles,
+} from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ assignmentId: string }> };
@@ -62,7 +69,7 @@ export async function POST(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOrigin(request);
-    const session = await requireSession([CampusRole.FACULTY, CampusRole.DEPARTMENT_CHAIR, CampusRole.UNIVERSITY_ADMIN, CampusRole.SUPER_ADMIN]);
+    const session = await requireSession(teachingRoles);
     const { assignmentId } = await context.params;
     const input = await readJsonObject(request);
     const studentId = requiredText(input.studentId, "Student", 1, 100);
@@ -76,9 +83,11 @@ export async function PATCH(request: Request, context: RouteContext) {
         id: assignmentId,
         section: {
           term: { institutionId: session.membership.institutionId },
-          ...(session.membership.role === CampusRole.FACULTY
+          ...(courseTeachingRoles.includes(session.membership.role)
             ? { instructors: { some: { userId: session.userId } } }
-            : {}),
+            : departmentRoles.includes(session.membership.role)
+              ? { course: { department: { chairId: session.userId } } }
+              : {}),
           enrollments: {
             some: { studentId, status: EnrollmentStatus.ENROLLED },
           },

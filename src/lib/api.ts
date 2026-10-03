@@ -72,12 +72,62 @@ export async function recordAudit(
 
 export const administrativeRoles: CampusRole[] = [
   CampusRole.DEPARTMENT_CHAIR,
-  CampusRole.PRINCIPAL,
-  CampusRole.UNIVERSITY_ADMIN,
   CampusRole.SUPER_ADMIN,
+  CampusRole.UNIVERSITY_ADMIN,
+  CampusRole.REGISTRAR,
+  CampusRole.PRINCIPAL,
 ];
 
-export const teachingRoles: CampusRole[] = [CampusRole.FACULTY, ...administrativeRoles];
+export const departmentRoles: CampusRole[] = [
+  CampusRole.DEPARTMENT_HEAD,
+  CampusRole.DEPARTMENT_CHAIR,
+];
+
+export const financeRoles: CampusRole[] = [
+  ...administrativeRoles,
+  CampusRole.FINANCE_ADMIN,
+];
+
+export const teachingRoles: CampusRole[] = [
+  CampusRole.TEACHER,
+  CampusRole.FACULTY,
+  ...administrativeRoles,
+  ...departmentRoles,
+];
+
+export const courseTeachingRoles: CampusRole[] = [
+  CampusRole.TEACHER,
+  CampusRole.FACULTY,
+];
+
+export const examManagementRoles: CampusRole[] = [
+  ...teachingRoles,
+  CampusRole.EXAM_CONTROLLER,
+];
+
+export const studentRoles: CampusRole[] = [
+  CampusRole.STUDENT,
+  CampusRole.MEDICAL_STUDENT,
+  CampusRole.LAW_STUDENT,
+];
+
+export const inviteableCampusRoles: CampusRole[] = [
+  CampusRole.STUDENT,
+  CampusRole.PARENT,
+  CampusRole.FACULTY,
+  CampusRole.TEACHER,
+  CampusRole.DEPARTMENT_CHAIR,
+  CampusRole.DEPARTMENT_HEAD,
+  CampusRole.PRINCIPAL,
+  CampusRole.UNIVERSITY_ADMIN,
+  CampusRole.REGISTRAR,
+  CampusRole.EXAM_CONTROLLER,
+  CampusRole.RECRUITER,
+  CampusRole.CAMPUS_BUSINESS,
+  CampusRole.MEDICAL_STUDENT,
+  CampusRole.LAW_STUDENT,
+  CampusRole.SUPER_ADMIN,
+];
 
 export function isPrismaUniqueError(error: unknown) {
   return (

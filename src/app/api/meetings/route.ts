@@ -5,30 +5,78 @@ import {
   assertSameOrigin,
   requireSession,
 } from "@/lib/auth";
-import { readJsonObject, recordAudit, requiredText, teachingRoles, validDate } from "@/lib/api";
+import {
+  courseTeachingRoles,
+  departmentRoles,
+  readJsonObject,
+  recordAudit,
+  requiredText,
+  studentRoles,
+  teachingRoles,
+  validDate,
+} from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const session = await requireSession();
-    const student = (
-      [CampusRole.STUDENT, CampusRole.MEDICAL_STUDENT, CampusRole.LAW_STUDENT] as CampusRole[]
-    ).includes(session.membership.role);
+    const session = await requireSession([
+      ...studentRoles,
+      CampusRole.PARENT,
+      ...teachingRoles,
+    ]);
+    const { role } = session.membership;
+    const student = studentRoles.includes(role);
+    const parent = role === CampusRole.PARENT;
     const meetings = await prisma.classMeeting.findMany({
       where: {
         section: {
           term: { institutionId: session.membership.institutionId },
           ...(student
             ? { enrollments: { some: { studentId: session.userId, status: EnrollmentStatus.ENROLLED } } }
-            : session.membership.role === CampusRole.FACULTY
+            : parent
+              ? {
+                  enrollments: {
+                    some: {
+                      status: EnrollmentStatus.ENROLLED,
+                      student: {
+                        studentGuardians: {
+                          some: {
+                            guardianId: session.userId,
+                            verifiedAt: { not: null },
+                          },
+                        },
+                      },
+                    },
+                  },
+                }
+              : courseTeachingRoles.includes(role)
               ? { instructors: { some: { userId: session.userId } } }
-              : {}),
+              : departmentRoles.includes(role)
+                ? { course: { department: { chairId: session.userId } } }
+                : {}),
         },
       },
       include: {
         section: { include: { course: { select: { code: true, title: true } } } },
         ...(student
           ? { attendance: { where: { studentId: session.userId }, select: { status: true } } }
+          : parent
+            ? {
+                attendance: {
+                  where: {
+                    status: { in: Object.values(AttendanceStatus) },
+                    student: {
+                      studentGuardians: {
+                        some: {
+                          guardianId: session.userId,
+                          verifiedAt: { not: null },
+                        },
+                      },
+                    },
+                  },
+                  select: { studentId: true, status: true },
+                },
+              }
           : {}),
       },
       orderBy: { startsAt: "asc" },
@@ -56,9 +104,11 @@ export async function POST(request: Request) {
       where: {
         id: sectionId,
         term: { institutionId: session.membership.institutionId },
-        ...(session.membership.role === CampusRole.FACULTY
+        ...(courseTeachingRoles.includes(session.membership.role)
           ? { instructors: { some: { userId: session.userId } } }
-          : {}),
+          : departmentRoles.includes(session.membership.role)
+            ? { course: { department: { chairId: session.userId } } }
+            : {}),
       },
       select: { id: true },
     });
@@ -96,9 +146,11 @@ export async function PATCH(request: Request) {
         id: meetingId,
         section: {
           term: { institutionId: session.membership.institutionId },
-          ...(session.membership.role === CampusRole.FACULTY
+          ...(courseTeachingRoles.includes(session.membership.role)
             ? { instructors: { some: { userId: session.userId } } }
-            : {}),
+            : departmentRoles.includes(session.membership.role)
+              ? { course: { department: { chairId: session.userId } } }
+              : {}),
           enrollments: {
             some: { studentId, status: EnrollmentStatus.ENROLLED },
           },

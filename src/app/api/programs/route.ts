@@ -1,11 +1,16 @@
-import { CampusRole } from "@prisma/client";
 import {
   AuthenticationError,
   authErrorResponse,
   assertSameOrigin,
   requireSession,
 } from "@/lib/auth";
-import { administrativeRoles, readJsonObject, recordAudit, requiredText } from "@/lib/api";
+import {
+  administrativeRoles,
+  departmentRoles,
+  readJsonObject,
+  recordAudit,
+  requiredText,
+} from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -26,7 +31,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
-    const session = await requireSession(administrativeRoles);
+    const session = await requireSession([...administrativeRoles, ...departmentRoles]);
     const input = await readJsonObject(request);
     const departmentId = requiredText(input.departmentId, "Department", 1, 100);
     const name = requiredText(input.name, "Program name", 2, 120);
@@ -36,7 +41,7 @@ export async function POST(request: Request) {
       where: {
         id: departmentId,
         institutionId: session.membership.institutionId,
-        ...(session.membership.role === CampusRole.DEPARTMENT_CHAIR
+        ...(departmentRoles.includes(session.membership.role)
           ? { chairId: session.userId }
           : {}),
       },

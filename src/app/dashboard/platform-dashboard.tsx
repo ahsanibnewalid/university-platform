@@ -58,7 +58,7 @@ type InstitutionData = { id: string; name: string; slug: string };
 type Field = {
   name: string;
   label: string;
-  type?: "text" | "email" | "number" | "date" | "datetime-local" | "textarea" | "select" | "checkbox";
+  type?: "text" | "email" | "number" | "date" | "time" | "datetime-local" | "textarea" | "select" | "checkbox";
   required?: boolean;
   min?: number;
   max?: number;
@@ -93,7 +93,7 @@ const sections: {
   { key: "Research", label: "Research", icon: <Microscope size={18} />, description: "Research projects and collaborations" },
   { key: "Administration", label: "Administration", icon: <ShieldCheck size={18} />, description: "Institution, memberships, terms, and departments" },
   { key: "Library", label: "Library", icon: <Library size={18} />, description: "Library catalogue, documents, and certificates" },
-  { key: "Fees", label: "Fee information", icon: <FileText size={18} />, description: "Informational records only; no payment processing" },
+  { key: "Fees", label: "Fees & payments", icon: <FileText size={18} />, description: "Invoices, verified payments, receipts, and refund requests" },
   { key: "Support", label: "Help & support", icon: <CircleHelp size={18} />, description: "Contact your campus support team" },
   { key: "Specialized", label: "Medical & law", icon: <BookOpen size={18} />, description: "Clinical placements and legal-education exercises" },
   { key: "Analytics", label: "Analytics", icon: <Search size={18} />, description: "Institution-wide academic and campus insights" },
@@ -103,14 +103,53 @@ const sectionByKey = new Map(sections.map((section) => [section.key, section]));
 const adminRoles: CampusRole[] = [
   CampusRole.DEPARTMENT_CHAIR,
   CampusRole.PRINCIPAL,
+  CampusRole.REGISTRAR,
   CampusRole.UNIVERSITY_ADMIN,
   CampusRole.SUPER_ADMIN,
 ];
-const teacherRoles: CampusRole[] = [CampusRole.FACULTY, ...adminRoles];
+const financeRoles: CampusRole[] = [
+  ...adminRoles,
+  CampusRole.FINANCE_ADMIN,
+];
+const departmentRoles: CampusRole[] = [
+  CampusRole.DEPARTMENT_HEAD,
+  CampusRole.DEPARTMENT_CHAIR,
+];
+const teacherRoles: CampusRole[] = [
+  CampusRole.TEACHER,
+  CampusRole.FACULTY,
+  ...adminRoles,
+  ...departmentRoles,
+];
+const courseRoles: CampusRole[] = [CampusRole.TEACHER, CampusRole.FACULTY];
 const studentRoles: CampusRole[] = [
   CampusRole.STUDENT,
   CampusRole.MEDICAL_STUDENT,
   CampusRole.LAW_STUDENT,
+];
+const scheduleViewerRoles: CampusRole[] = [
+  ...studentRoles,
+  CampusRole.PARENT,
+  ...adminRoles,
+  ...departmentRoles,
+  ...courseRoles,
+];
+const inviteableRoles: CampusRole[] = [
+  CampusRole.STUDENT,
+  CampusRole.PARENT,
+  CampusRole.FACULTY,
+  CampusRole.TEACHER,
+  CampusRole.DEPARTMENT_CHAIR,
+  CampusRole.DEPARTMENT_HEAD,
+  CampusRole.PRINCIPAL,
+  CampusRole.UNIVERSITY_ADMIN,
+  CampusRole.REGISTRAR,
+  CampusRole.EXAM_CONTROLLER,
+  CampusRole.RECRUITER,
+  CampusRole.CAMPUS_BUSINESS,
+  CampusRole.MEDICAL_STUDENT,
+  CampusRole.LAW_STUDENT,
+  CampusRole.SUPER_ADMIN,
 ];
 
 async function apiRequest(endpoint: string, init?: RequestInit): Promise<ApiData> {
@@ -143,7 +182,20 @@ async function loadModuleData(module: ModuleKey, role: CampusRole): Promise<ApiD
     case "Home":
       return get("/api/dashboard");
     case "Academics": {
-      const [courses, registration, departments, programs, terms, meetings, exams, transcript] =
+      const [
+        courses,
+        registration,
+        departments,
+        programs,
+        terms,
+        meetings,
+        exams,
+        transcript,
+        faculties,
+        academicYears,
+        classrooms,
+        schedules,
+      ] =
         await Promise.all([
           get("/api/courses"),
           studentRoles.includes(role)
@@ -157,10 +209,36 @@ async function loadModuleData(module: ModuleKey, role: CampusRole): Promise<ApiD
           studentRoles.includes(role)
             ? get("/api/transcript")
             : Promise.resolve({}),
+          get("/api/faculties"),
+          get("/api/academic-years"),
+          get("/api/classrooms"),
+          scheduleViewerRoles.includes(role)
+            ? get("/api/schedules")
+            : Promise.resolve({ schedules: [] }),
         ]);
-      return { ...courses, ...registration, ...departments, ...programs, ...terms, ...meetings, ...exams, ...transcript };
+      return {
+        ...courses,
+        ...registration,
+        ...departments,
+        ...programs,
+        ...terms,
+        ...meetings,
+        ...exams,
+        ...transcript,
+        ...faculties,
+        ...academicYears,
+        ...classrooms,
+        ...schedules,
+      };
     }
     case "Coursework": {
+      if (role === CampusRole.EXAM_CONTROLLER) {
+        const [courses, exams] = await Promise.all([
+          get("/api/courses"),
+          get("/api/exams"),
+        ]);
+        return { ...courses, ...exams };
+      }
       const [assignments, courses, meetings, exams] = await Promise.all([
         get("/api/assignments"),
         get("/api/courses"),
@@ -219,8 +297,18 @@ async function loadModuleData(module: ModuleKey, role: CampusRole): Promise<ApiD
     }
     case "Library":
       return get("/api/campus");
-    case "Fees":
-      return get("/api/fees");
+    case "Fees": {
+      const financeAccess = financeRoles.includes(role);
+      const [legacyFees, finance, transactions, refunds] = await Promise.all([
+        adminRoles.includes(role) || studentRoles.includes(role)
+          ? get("/api/fees")
+          : Promise.resolve({ fees: [] }),
+        get("/api/finance/invoices"),
+        financeAccess ? get("/api/finance/payments") : Promise.resolve({}),
+        financeAccess ? get("/api/finance/refunds") : Promise.resolve({}),
+      ]);
+      return { ...legacyFees, ...finance, ...transactions, ...refunds };
+    }
     case "Support":
       return get("/api/support");
     case "Specialized":
@@ -235,23 +323,39 @@ export default function PlatformDashboard({
   institution,
   membershipId,
   role: initialRole,
+  initialModule,
+  paymentOutcome,
 }: {
   user: UserData;
   institution: InstitutionData;
   membershipId: string;
   role: CampusRole;
+  initialModule?: string;
+  paymentOutcome?: string;
 }) {
   const router = useRouter();
   const [role, setRole] = useState(initialRole);
   const [activeInstitution, setActiveInstitution] = useState(institution);
   const [currentMembershipId, setCurrentMembershipId] = useState(membershipId);
-  const [activeModule, setActiveModule] = useState<ModuleKey>("Home");
+  const [activeModule, setActiveModule] = useState<ModuleKey>(() =>
+    initialModule && sectionByKey.has(initialModule as ModuleKey)
+      ? (initialModule as ModuleKey)
+      : "Home",
+  );
   const [data, setData] = useState<ApiData>({});
   const [memberships, setMemberships] = useState<ApiData[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [success, setSuccess] = useState(() =>
+    paymentOutcome === "succeeded"
+      ? "Payment verified. Your receipt is available below."
+      : paymentOutcome === "review"
+        ? "Payment received and sent to university finance for review."
+        : paymentOutcome
+          ? "Payment was not confirmed. You can try again from your invoice."
+          : "",
+  );
   const [search, setSearch] = useState("");
   const [openAction, setOpenAction] = useState<Action | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -292,6 +396,14 @@ export default function PlatformDashboard({
       .catch(() => setMemberships([]));
     return () => window.removeEventListener("campushub:unauthorized", redirectToLogin);
   }, [router]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("payment")) {
+      url.searchParams.delete("payment");
+      window.history.replaceState({}, "", url);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -357,10 +469,14 @@ export default function PlatformDashboard({
         typeof openAction.endpoint === "function"
           ? openAction.endpoint(values)
           : openAction.endpoint;
-      await apiRequest(endpoint, {
+      const result = await apiRequest(endpoint, {
         method: openAction.method ?? "POST",
         body: JSON.stringify(payload),
       });
+      if (typeof result.checkoutUrl === "string") {
+        window.location.assign(result.checkoutUrl);
+        return;
+      }
       setOpenAction(null);
       setSuccess("Saved successfully.");
       await reload(activeModule);
@@ -446,7 +562,7 @@ export default function PlatformDashboard({
           </nav>
           <div className="hub-sidebar-footer">
             <div className="hub-user-card"><span className="hub-user-dot">{initials(user.name)}</span><span><b>{user.name}</b><small>{roleLabel(role)}</small></span><button className="hub-icon-button" aria-label="Sign out" onClick={signOut}><LogOut size={15} /></button></div>
-            <p>Secure campus workspace · No payment processing</p>
+            <p>Secure campus workspace · SSLCommerz payments</p>
           </div>
         </aside>
 
@@ -479,8 +595,8 @@ export default function PlatformDashboard({
                 ))}
               </div>
               {activeModule === "Parents" && <GuardianActions data={data} role={role} onAction={act} />}
-              {activeModule === "Events" && <p className="hub-context-note"><CalendarDays size={14} />Select an event to register your interest. Registration is free; CampusHub has no checkout or payment system.</p>}
-              {activeModule === "Fees" && <p className="hub-context-note"><ShieldCheck size={14} />These are informational records only. No invoices, payment records, checkout, or payment integrations are processed here.</p>}
+              {activeModule === "Events" && <p className="hub-context-note"><CalendarDays size={14} />Select an event to register your interest. Event registration records attendance only; it does not collect event fees.</p>}
+              {activeModule === "Fees" && <p className="hub-context-note"><ShieldCheck size={14} />Payments are confirmed only after SSLCommerz server-side validation. Receipts are available for verified payments; refund completion is recorded by finance after the gateway refund is processed.</p>}
               {activeModule !== "Home" && activeModule !== "Messages" && activeModule !== "Analytics" && (
                 <div className="hub-record-grid">
                   {records.map(([key, items]) => (
@@ -540,13 +656,15 @@ function actionList(
   data: ApiData,
 ): Action[] {
   const departments = choiceList(data.departments, (item) => `${item.code ?? ""} ${item.name ?? ""}`.trim());
+  const faculties = choiceList(data.faculties, (item) => `${item.code ?? ""} ${item.name ?? ""}`.trim());
   const terms = choiceList(data.terms, (item) => `${item.name ?? ""} · ${String(item.status ?? "")}`);
+  const classrooms = choiceList(data.classrooms, (item) => `${item.code ?? ""} ${item.name ?? ""}`.trim());
   const sectionsForCourses = choiceList(data.courses, (item) => {
     const course = item.course as ApiData | undefined;
     return `${course?.code ?? ""} ${course?.title ?? ""} ${item.sectionCode ?? ""}`.trim();
   });
   const companies = choiceList(data.companies, (item) => String(item.name ?? ""));
-  const availableRoles = Object.values(CampusRole)
+  const availableRoles = inviteableRoles
     .filter((candidate) => candidate !== CampusRole.SUPER_ADMIN || role === CampusRole.SUPER_ADMIN)
     .map((candidate) => ({ label: roleLabel(candidate), value: candidate }));
   switch (module) {
@@ -554,9 +672,28 @@ function actionList(
       const actions: Action[] = [];
       if (adminRoles.includes(role)) {
         actions.push({
+          title: "Add faculty",
+          endpoint: "/api/faculties",
+          fields: [{ name: "name", label: "Faculty name" }, { name: "code", label: "Faculty code" }],
+        });
+        actions.push({
           title: "Add department",
           endpoint: "/api/departments",
-          fields: [{ name: "name", label: "Department name", min: 2, max: 120 }, { name: "code", label: "Department code", min: 2, max: 16 }],
+          fields: [
+            { name: "facultyId", label: "Faculty", type: "select", options: faculties, required: false },
+            { name: "name", label: "Department name", min: 2, max: 120 },
+            { name: "code", label: "Department code", min: 2, max: 16 },
+          ],
+        });
+        actions.push({
+          title: "Create academic year",
+          endpoint: "/api/academic-years",
+          fields: [
+            { name: "name", label: "Academic year name", placeholder: "2026–2027" },
+            { name: "startsAt", label: "Starts", type: "date" },
+            { name: "endsAt", label: "Ends", type: "date" },
+            { name: "status", label: "Status", type: "select", options: ["PLANNED", "ACTIVE", "COMPLETED"].map((value) => ({ label: prettify(value), value })) },
+          ],
         });
         actions.push({
           title: "Create academic term",
@@ -572,6 +709,59 @@ function actionList(
           title: "Create course section",
           endpoint: "/api/courses",
           fields: [{ name: "departmentId", label: "Department", type: "select", options: departments }, { name: "termId", label: "Academic term", type: "select", options: terms }, { name: "code", label: "Course code" }, { name: "title", label: "Course title" }, { name: "credits", label: "Credits", type: "number", min: 1, max: 30 }, { name: "sectionCode", label: "Section", placeholder: "A" }, { name: "room", label: "Room", required: false }, { name: "description", label: "Description", type: "textarea", required: false }],
+        });
+        actions.push({
+          title: "Add classroom",
+          endpoint: "/api/classrooms",
+          fields: [
+            { name: "code", label: "Room code" },
+            { name: "name", label: "Room name" },
+            { name: "building", label: "Building", required: false },
+            { name: "capacity", label: "Capacity", type: "number", min: 1, required: false },
+          ],
+        });
+      }
+      if (departmentRoles.includes(role) && !adminRoles.includes(role)) {
+        actions.push(
+          {
+            title: "Create program",
+            endpoint: "/api/programs",
+            fields: [
+              { name: "departmentId", label: "Department", type: "select", options: departments },
+              { name: "name", label: "Program name" },
+              { name: "code", label: "Program code" },
+              { name: "level", label: "Degree level" },
+            ],
+          },
+          {
+            title: "Create course section",
+            endpoint: "/api/courses",
+            fields: [
+              { name: "departmentId", label: "Department", type: "select", options: departments },
+              { name: "termId", label: "Academic term", type: "select", options: terms },
+              { name: "code", label: "Course code" },
+              { name: "title", label: "Course title" },
+              { name: "credits", label: "Credits", type: "number", min: 1, max: 30 },
+              { name: "sectionCode", label: "Section", placeholder: "A" },
+              { name: "room", label: "Room", required: false },
+              { name: "description", label: "Description", type: "textarea", required: false },
+            ],
+          },
+        );
+      }
+      if ([...adminRoles, ...departmentRoles, ...courseRoles].includes(role)) {
+        actions.push({
+          title: "Add recurring class schedule",
+          endpoint: "/api/schedules",
+          fields: [
+            { name: "sectionId", label: "Course section", type: "select", options: sectionsForCourses },
+            { name: "weekday", label: "Weekday", type: "select", options: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((value) => ({ label: prettify(value), value })) },
+            { name: "startsAt", label: "Starts", type: "time" },
+            { name: "endsAt", label: "Ends", type: "time" },
+            { name: "classroomId", label: "Classroom", type: "select", options: classrooms, required: false },
+            { name: "effectiveFrom", label: "Effective from", type: "date", required: false },
+            { name: "effectiveUntil", label: "Effective until", type: "date", required: false },
+          ],
         });
       }
       if (studentRoles.includes(role)) {
@@ -590,6 +780,18 @@ function actionList(
           { title: "Schedule class meeting", endpoint: "/api/meetings", fields: [{ name: "sectionId", label: "Course section", type: "select", options: sectionsForCourses }, { name: "title", label: "Class title" }, { name: "startsAt", label: "Starts", type: "datetime-local" }, { name: "endsAt", label: "Ends", type: "datetime-local" }, { name: "room", label: "Room", required: false }] },
           { title: "Schedule exam", endpoint: "/api/exams", fields: [{ name: "sectionId", label: "Course section", type: "select", options: sectionsForCourses }, { name: "title", label: "Exam title" }, { name: "startsAt", label: "Exam time", type: "datetime-local" }, { name: "maxPoints", label: "Maximum points", type: "number", min: 1 }] },
         ];
+      }
+      if (role === CampusRole.EXAM_CONTROLLER) {
+        return [{
+          title: "Schedule exam",
+          endpoint: "/api/exams",
+          fields: [
+            { name: "sectionId", label: "Course section", type: "select", options: sectionsForCourses },
+            { name: "title", label: "Exam title" },
+            { name: "startsAt", label: "Exam time", type: "datetime-local" },
+            { name: "maxPoints", label: "Maximum points", type: "number", min: 1 },
+          ],
+        }];
       }
       if (studentRoles.includes(role)) return [{ title: "Submit assignment", endpoint: (values) => `/api/assignments/${encodeURIComponent(String(values.assignmentId))}/submissions`, fields: [{ name: "assignmentId", label: "Assignment", type: "select", options: choiceList(data.assignments, (item) => `${item.title ?? ""} · ${String(item.dueAt ?? "").slice(0, 10)}`) }, { name: "content", label: "Your submission", type: "textarea" }] }];
       return [];
@@ -682,9 +884,85 @@ function actionList(
         { title: "Create academic term", endpoint: "/api/terms", fields: [{ name: "name", label: "Term name" }, { name: "startsAt", label: "Starts", type: "date" }, { name: "endsAt", label: "Ends", type: "date" }, { name: "status", label: "Status", type: "select", options: ["PLANNED", "ACTIVE", "COMPLETED"].map((value) => ({ label: prettify(value), value })) }] },
       ];
     case "Fees":
-      return adminRoles.includes(role)
-        ? [{ title: "Add fee information", endpoint: "/api/fees", fields: [{ name: "studentId", label: "Student account ID" }, { name: "description", label: "Informational record" }, { name: "amountDue", label: "Amount", type: "number", min: 0 }, { name: "currency", label: "Currency (ISO code)", required: false, placeholder: "USD" }, { name: "dueAt", label: "Due date", type: "date" }] }]
-        : [];
+      {
+        const actions: Action[] = [];
+        if (financeRoles.includes(role)) {
+          actions.push(
+            {
+              title: "Create fee structure",
+              endpoint: "/api/finance/fee-structures",
+              fields: [
+                { name: "name", label: "Fee name" },
+                { name: "type", label: "Fee type", type: "select", options: ["TUITION", "REGISTRATION", "EXAMINATION", "LABORATORY", "LIBRARY", "HOSTEL", "TRANSPORT", "CERTIFICATE", "OTHER"].map((value) => ({ label: prettify(value), value })) },
+                { name: "amount", label: "Amount (BDT)", type: "number", min: 0.01 },
+                { name: "description", label: "Description", type: "textarea", required: false },
+              ],
+            },
+            {
+              title: "Issue student invoice",
+              endpoint: "/api/finance/invoices",
+              fields: [
+                { name: "studentId", label: "Student", type: "select", options: choiceList(data.students, (item) => `${item.name ?? "Student"} · ${item.email ?? ""}`) },
+                { name: "feeStructureId", label: "Fee structure", type: "select", options: choiceList(data.feeStructures, (item) => `${item.name ?? "Fee"} · BDT ${item.amount ?? ""}`) },
+                { name: "dueAt", label: "Due date", type: "date" },
+              ],
+            },
+            {
+              title: "Record refund outcome",
+              endpoint: "/api/finance/refunds",
+              method: "PATCH",
+              fields: [
+                { name: "refundId", label: "Refund request", type: "select", options: choiceList(
+                  Array.isArray(data.refunds)
+                    ? data.refunds.filter((item) => ["REQUESTED", "PROCESSING"].includes(String(item.status)))
+                    : [],
+                  (item) => `${(item.payment as ApiData | undefined)?.invoice && ((item.payment as ApiData).invoice as ApiData).invoiceNumber ? String(((item.payment as ApiData).invoice as ApiData).invoiceNumber) : "Invoice"} · BDT ${item.amount ?? ""}`,
+                ) },
+                { name: "status", label: "Outcome", type: "select", options: [{ label: "Refund completed at gateway", value: "COMPLETED" }, { label: "Reject request", value: "REJECTED" }] },
+                { name: "gatewayRefundReference", label: "Gateway refund reference (completed only)", required: false },
+              ],
+              prepare: (values) => ({
+                refundId: values.refundId,
+                status: values.status,
+                ...(typeof values.gatewayRefundReference === "string" && values.gatewayRefundReference
+                  ? { gatewayRefundReference: values.gatewayRefundReference }
+                  : {}),
+              }),
+            },
+          );
+        }
+        if (studentRoles.includes(role) || role === CampusRole.PARENT) {
+          actions.push({
+            title: "Pay an open invoice",
+            endpoint: "/api/finance/payments",
+            fields: [
+              { name: "invoiceId", label: "Invoice", type: "select", options: choiceList(
+                Array.isArray(data.invoices)
+                  ? data.invoices.filter((item) => ["ISSUED", "PARTIALLY_PAID"].includes(String(item.status)))
+                  : [],
+                (item) => `${item.invoiceNumber ?? "Invoice"} · BDT ${(
+                  Number(item.totalAmount ?? 0) - Number(item.paidAmount ?? 0)
+                ).toFixed(2)} due (${prettify(String(item.status ?? ""))})`,
+              ) },
+              { name: "customerPhone", label: "Billing phone" },
+              { name: "customerAddress", label: "Billing address" },
+              { name: "customerCity", label: "City" },
+              { name: "customerPostcode", label: "Postal code" },
+              { name: "customerCountry", label: "Country" },
+            ],
+          });
+          actions.push({
+            title: "Request a refund",
+            endpoint: "/api/finance/refunds",
+            fields: [
+              { name: "paymentId", label: "Verified payment", type: "select", options: choiceList(data.payments, (item) => `${(item.invoice as ApiData | undefined)?.invoiceNumber ?? "Invoice"} · BDT ${item.amount ?? ""}`) },
+              { name: "amount", label: "Requested amount (BDT)", type: "number", min: 0.01 },
+              { name: "reason", label: "Reason", type: "textarea", min: 3, max: 1000 },
+            ],
+          });
+        }
+        return actions;
+      }
     case "Support":
       return [{ title: "Create help request", endpoint: "/api/support", fields: [{ name: "subject", label: "Subject" }, { name: "description", label: "How can we help?", type: "textarea" }] }];
     case "Specialized":
@@ -730,11 +1008,17 @@ function Overview({
 }) {
   const metrics = data.metrics as ApiData | undefined;
   const courses = Array.isArray(data.courses) ? data.courses as ApiData[] : [];
-  const assignments = Array.isArray(data.upcomingAssignments) ? data.upcomingAssignments as ApiData[] : [];
   const children = Array.isArray(data.children) ? data.children as ApiData[] : [];
+  const assignments = Array.isArray(data.upcomingAssignments)
+    ? data.upcomingAssignments as ApiData[]
+    : children.flatMap((student) =>
+        Array.isArray(student.upcomingAssignments)
+          ? student.upcomingAssignments as ApiData[]
+          : [],
+      );
   const sectionsData = Array.isArray(data.sections) ? data.sections as ApiData[] : [];
   const cards =
-    metrics
+    metrics && adminRoles.includes(role)
       ? [
           { label: "Active students", value: metric(metrics.students), icon: <Users size={18} />, tint: "tint-blue" },
           { label: "Faculty", value: metric(metrics.faculty), icon: <GraduationCap size={18} />, tint: "tint-green" },
@@ -746,30 +1030,177 @@ function Overview({
             { label: "Linked students", value: String(children.length), icon: <Users size={18} />, tint: "tint-blue" },
             { label: "Unread notifications", value: metric(data.unreadNotifications), icon: <Megaphone size={18} />, tint: "tint-orange" },
           ]
-        : role === CampusRole.FACULTY
+        : courseRoles.includes(role)
           ? [
               { label: "Active course sections", value: String(sectionsData.length), icon: <BookOpen size={18} />, tint: "tint-blue" },
               { label: "Assignments", value: String(assignments.length), icon: <ClipboardList size={18} />, tint: "tint-green" },
               { label: "Unread notifications", value: metric(data.unreadNotifications), icon: <Megaphone size={18} />, tint: "tint-orange" },
             ]
-          : [
+          : departmentRoles.includes(role)
+            ? [
+                { label: "Students in scope", value: metric(metrics?.students), icon: <Users size={18} />, tint: "tint-blue" },
+                { label: "Departments", value: metric(metrics?.departments), icon: <Building2 size={18} />, tint: "tint-lilac" },
+                { label: "Active course sections", value: metric(metrics?.activeCourses), icon: <BookOpen size={18} />, tint: "tint-green" },
+                { label: "Unread notifications", value: metric(metrics?.unreadNotifications), icon: <Megaphone size={18} />, tint: "tint-orange" },
+              ]
+            : studentRoles.includes(role)
+            ? [
               { label: "Enrolled courses", value: String(courses.length), icon: <BookOpen size={18} />, tint: "tint-blue" },
               { label: "Attendance", value: data.attendanceRate == null ? "—" : `${String(data.attendanceRate)}%`, icon: <Check size={18} />, tint: "tint-green" },
               { label: "GPA", value: data.gpa == null ? "—" : String(data.gpa), icon: <GraduationCap size={18} />, tint: "tint-lilac" },
               { label: "Unread notifications", value: metric(data.unreadNotifications), icon: <Megaphone size={18} />, tint: "tint-orange" },
-            ];
+              ]
+            : [
+                {
+                  label:
+                    role === CampusRole.EXAM_CONTROLLER
+                      ? "Exams"
+                      : role === CampusRole.FINANCE_ADMIN
+                        ? "Fee records"
+                        : role === CampusRole.LIBRARIAN
+                          ? "Library items"
+                          : role === CampusRole.HOSTEL_MANAGER
+                            ? "Hostel buildings"
+                            : role === CampusRole.TRANSPORT_MANAGER
+                              ? "Transit routes"
+                              : "Unread notifications",
+                  value: metric(
+                    role === CampusRole.EXAM_CONTROLLER
+                      ? metrics?.exams
+                      : role === CampusRole.FINANCE_ADMIN
+                        ? metrics?.feeRecords
+                        : role === CampusRole.LIBRARIAN
+                          ? metrics?.libraryItems
+                          : role === CampusRole.HOSTEL_MANAGER
+                            ? metrics?.hostelBuildings
+                            : role === CampusRole.TRANSPORT_MANAGER
+                              ? metrics?.transitRoutes
+                              : metrics?.unreadNotifications,
+                  ),
+                  icon: <Building2 size={18} />,
+                  tint: "tint-blue",
+                },
+                ...(role === CampusRole.FINANCE_ADMIN
+                  ? [
+                      {
+                        label: "Informational fees due",
+                        value: metric(metrics?.feesDue),
+                        icon: <ClipboardList size={18} />,
+                        tint: "tint-orange",
+                      },
+                    ]
+                  : []),
+                { label: "Unread notifications", value: metric(metrics?.unreadNotifications), icon: <Megaphone size={18} />, tint: "tint-orange" },
+              ];
   return (
     <div className="hub-overview">
       <div className="hub-metric-grid">{cards.map((card) => <div className="hub-metric-card" key={card.label}><span className={`hub-metric-icon ${card.tint}`}>{card.icon}</span><b>{card.value}</b><small>{card.label}</small></div>)}</div>
       <div className="hub-overview-grid">
         <section className="hub-panel hub-quick-panel"><div className="hub-panel-heading"><div><h2>Go to your campus</h2><p>Everything important, one shared workspace.</p></div><Sparkles size={19} /></div><div className="hub-quick-links">{(["Academics", "Social", "Events", "Messages", "Careers", "Campus life"] as ModuleKey[]).map((key) => { const item = sectionByKey.get(key)!; return <button key={key} onClick={() => navigate(key)}><span>{item.icon}</span><b>{item.label}</b><ChevronRight size={15} /></button>; })}</div></section>
-        <section className="hub-panel"><div className="hub-panel-heading"><div><h2>{role === CampusRole.PARENT ? "Linked students" : role === CampusRole.FACULTY ? "Teaching sections" : "Your courses"}</h2><p>{role === CampusRole.PARENT ? "Only approved links reveal academic details." : "A snapshot from your active institution."}</p></div><button className="hub-inline-link" onClick={() => navigate(role === CampusRole.PARENT ? "Parents" : "Academics")}>View <ArrowRight size={14} /></button></div>
+        <section className="hub-panel"><div className="hub-panel-heading"><div><h2>{role === CampusRole.PARENT ? "Linked students" : courseRoles.includes(role) ? "Teaching sections" : "Your courses"}</h2><p>{role === CampusRole.PARENT ? "Only approved links reveal academic details." : "A snapshot from your active institution."}</p></div><button className="hub-inline-link" onClick={() => navigate(role === CampusRole.PARENT ? "Parents" : "Academics")}>View <ArrowRight size={14} /></button></div>
           {role === CampusRole.PARENT ? <CompactList items={children} primary="name" secondary="email" empty="No student links yet. Ask your student to approve your guardian request." /> : <CompactList items={courses.length ? courses : sectionsData} primary="title" secondary="code" empty="No active course data yet. Academic records appear here after your institution configures its terms and registration." />}
         </section>
+        {role === CampusRole.PARENT && <ParentAcademicSummaries students={children} />}
         <section className="hub-panel"><div className="hub-panel-heading"><div><h2>Due soon</h2><p>Upcoming assignments from enrolled classes.</p></div><button className="hub-inline-link" onClick={() => navigate("Coursework")}>Coursework <ArrowRight size={14} /></button></div><CompactList items={assignments} primary="title" secondary="dueAt" empty="You are all caught up. New course assignments will appear here." /></section>
         <section className="hub-safety-panel"><ShieldCheck size={18} /><div><b>Designed for a trusted campus</b><p>Institution roles protect private academic records; guardian access requires student approval. Ordinary chats stay separate from official, audited announcements.</p></div></section>
       </div>
     </div>
+  );
+}
+
+function ParentAcademicSummaries({ students }: { students: ApiData[] }) {
+  if (!students.length) return null;
+  return (
+    <section className="hub-panel hub-data-panel-wide">
+      <div className="hub-panel-heading">
+        <div><h2>Academic progress</h2><p>Approved records for each linked student.</p></div>
+      </div>
+      <div className="hub-record-grid">
+        {students.map((student, index) => {
+          const profile = student.studentProfile as ApiData | undefined;
+          const currentTerm = profile?.currentTerm as ApiData | undefined;
+          const enrollments = Array.isArray(student.enrollments)
+            ? student.enrollments as ApiData[]
+            : [];
+          const courses = enrollments.flatMap((enrollment) => {
+            const section = enrollment.section as ApiData | undefined;
+            const course = section?.course as ApiData | undefined;
+            return course ? [course] : [];
+          });
+          const assignments = Array.isArray(student.upcomingAssignments)
+            ? student.upcomingAssignments as ApiData[]
+            : [];
+          const results = Array.isArray(student.results)
+            ? student.results as ApiData[]
+            : [];
+          const fees = Array.isArray(student.fees) ? student.fees as ApiData[] : [];
+          const attendance = Array.isArray(student.attendance)
+            ? student.attendance as ApiData[]
+            : [];
+          return (
+            <article className="hub-panel" key={String(student.id ?? index)}>
+              <div className="hub-panel-heading">
+                <div>
+                  <h3>{String(student.name ?? "Student")}</h3>
+                  <p>
+                    {profile?.studentNumber ? `Student no. ${String(profile.studentNumber)}` : "Student profile"}
+                    {currentTerm?.name ? ` · ${String(currentTerm.name)}` : ""}
+                    {profile?.academicStatus ? ` · ${prettify(String(profile.academicStatus))}` : ""}
+                  </p>
+                </div>
+                <span className="hub-count-pill">
+                  {student.attendanceRate == null ? "—" : `${String(student.attendanceRate)}% attendance`}
+                </span>
+              </div>
+              <h4>Enrolled courses</h4>
+              <CompactList items={courses} primary="title" secondary="code" empty="No enrolled courses." />
+              <h4>Upcoming assignments</h4>
+              <CompactList items={assignments} primary="title" secondary="dueAt" empty="No upcoming assignments." />
+              <h4>Released results</h4>
+              <CompactList
+                items={results.map((result) => {
+                  const exam = result.exam as ApiData | undefined;
+                  const section = exam?.section as ApiData | undefined;
+                  const course = section?.course as ApiData | undefined;
+                  return {
+                    title: String(exam?.title ?? course?.title ?? "Exam"),
+                    code: `${String(result.points ?? "—")} points`,
+                  };
+                })}
+                primary="title"
+                secondary="code"
+                empty="No released results."
+              />
+              <h4>Fee information</h4>
+              <CompactList
+                items={fees.map((fee) => ({
+                  title: String(fee.description ?? "Fee record"),
+                  code: `${String(fee.amountDue ?? "—")} ${String(fee.currency ?? "")}`,
+                }))}
+                primary="title"
+                secondary="code"
+                empty="No fee records."
+              />
+              <h4>Recent attendance</h4>
+              <CompactList
+                items={attendance.map((record) => {
+                  const meeting = record.meeting as ApiData | undefined;
+                  const section = meeting?.section as ApiData | undefined;
+                  const course = section?.course as ApiData | undefined;
+                  return {
+                    title: String(course?.title ?? "Class"),
+                    code: prettify(String(record.status ?? "unknown")),
+                  };
+                })}
+                primary="title"
+                secondary="code"
+                empty="No attendance has been recorded."
+              />
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -953,8 +1384,35 @@ function choiceList(value: unknown, label: (item: ApiData) => string) {
 function recordTitle(item: ApiData) {
   const course = item.course as ApiData | undefined;
   const student = item.student as ApiData | undefined;
+  const payment = item.payment as ApiData | undefined;
+  const invoice = item.invoice as ApiData | undefined;
+  const receipt = item.receipt as ApiData | undefined;
+  const paymentReceipt = payment?.receipt as ApiData | undefined;
+  const paymentInvoice = payment?.invoice as ApiData | undefined;
   const opportunity = item.opportunity as ApiData | undefined;
-  return String(item.title ?? item.name ?? item.subject ?? item.caseTitle ?? item.question ?? student?.name ?? opportunity?.title ?? course?.title ?? course?.code ?? item.code ?? item.type ?? item.status ?? "Campus record");
+  return String(
+    item.invoiceNumber ??
+      invoice?.invoiceNumber ??
+      paymentInvoice?.invoiceNumber ??
+      receipt?.receiptNumber ??
+      paymentReceipt?.receiptNumber ??
+      item.receiptNumber ??
+      payment?.transactionId ??
+      item.transactionId ??
+      item.title ??
+      item.name ??
+      item.subject ??
+      item.caseTitle ??
+      item.question ??
+      student?.name ??
+      opportunity?.title ??
+      course?.title ??
+      course?.code ??
+      item.code ??
+      item.type ??
+      item.status ??
+      "Campus record",
+  );
 }
 
 function recordSubtitle(item: ApiData) {
@@ -964,11 +1422,16 @@ function recordSubtitle(item: ApiData) {
   const author = item.author as ApiData | undefined;
   const institution = item.institution as ApiData | undefined;
   const event = item.event as ApiData | undefined;
-  return String(item.description ?? item.content ?? item.body ?? item.location ?? item.category ?? item.email ?? company?.name ?? creator?.name ?? author?.name ?? institution?.name ?? course?.code ?? event?.title ?? "");
+  const invoice = item.invoice as ApiData | undefined;
+  const payment = item.payment as ApiData | undefined;
+  const paymentInvoice = payment?.invoice as ApiData | undefined;
+  const receipt = item.receipt as ApiData | undefined;
+  const paymentReceipt = payment?.receipt as ApiData | undefined;
+  return String(item.description ?? item.reason ?? item.content ?? item.body ?? item.location ?? item.category ?? item.email ?? receipt?.receiptNumber ?? paymentReceipt?.receiptNumber ?? company?.name ?? creator?.name ?? author?.name ?? institution?.name ?? invoice?.invoiceNumber ?? paymentInvoice?.invoiceNumber ?? course?.code ?? event?.title ?? "");
 }
 
 function recordMeta(item: ApiData) {
-  const primary = [item.status, item.role, item.startsAt, item.dueAt, item.closesAt, item.startsAt, item.createdAt, item.verifiedAt ? "Verified" : null, item.amountDue != null ? `${String(item.currency ?? "")} ${String(item.amountDue)}` : null].filter((value): value is string | number => typeof value === "string" || typeof value === "number");
+  const primary = [item.status, item.role, item.startsAt, item.dueAt, item.closesAt, item.createdAt, item.verifiedAt ? "Verified" : null, item.amountDue != null ? `${String(item.currency ?? "")} ${String(item.amountDue)} due` : null, item.totalAmount != null ? `${String(item.currency ?? "")} ${String(item.totalAmount)} total` : null, item.paidAmount != null ? `${String(item.currency ?? "")} ${String(item.paidAmount)} paid` : null, item.amount != null ? `${String(item.currency ?? "BDT")} ${String(item.amount)}` : null].filter((value): value is string | number => typeof value === "string" || typeof value === "number");
   return primary.map((value) => typeof value === "string" && value.includes("T") ? new Date(value).toLocaleString() : String(value)).join(" · ");
 }
 

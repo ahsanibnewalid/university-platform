@@ -1,14 +1,14 @@
 # CampusHub
 
-CampusHub is a multi-institution digital-campus application built with Next.js,
+CampusHub is a single-university digital-campus application built with Next.js,
 TypeScript, Prisma, and PostgreSQL. Its product vision brings academic
 workflows, campus communications, social activity, administration, careers, and
 campus services into one role-aware web app.
 
-The intended audience includes students, parents and guardians, faculty,
-administrators, university leadership, recruiters, campus businesses, and
-specialized medical and law programs. The product is designed for multiple
-roles per person, institution-level data separation, and desktop and mobile web.
+The intended audience includes students, parents and guardians, teachers,
+department leadership, university offices, specialist campus staff, recruiters,
+campus businesses, and specialized medical and law programs. People can hold
+multiple roles at the university, with private records scoped by role.
 
 This repository is an actively developed foundation, **not a finished or
 production-ready university platform**. Several workflows have a usable UI and
@@ -18,7 +18,8 @@ data.
 
 ## Product areas
 
-- **Academics:** courses, registration, departments, programs, terms,
+- **Academics:** courses, registration, faculties, departments, programs,
+  batches, student and teacher profiles, academic years, terms, timetables,
   assignments, attendance, exams, results, and transcripts
 - **Community and social:** campus feed, communities, posts, comments,
   reactions, polls, events, and notifications
@@ -30,6 +31,8 @@ data.
   research collaboration
 - **Administration:** institution membership, invitations, role-aware access,
   and reporting
+- **Finance:** fee structures, student invoices, SSLCommerz hosted checkout,
+  server-verified payments, receipts, and refund request records
 
 ## Requirements
 
@@ -82,16 +85,23 @@ application. Do not use the development migration command in production.
 | `DATABASE_URL` | Yes | PostgreSQL pooled connection string for app traffic |
 | `DATABASE_URL_UNPOOLED` | For Neon migrations | Direct connection string for Prisma Migrate |
 | `BOOTSTRAP_SECRET` | For first setup | Private initial-setup credential; at least 24 characters |
-| `APP_URL` | For email links | Public base URL, for example `https://campus.example.edu` |
+| `APP_URL` | For email and payments | Public base URL, for example `https://campus.example.edu` |
 | `EMAIL_FROM` | For email | Verified sender address for invitations and password resets |
 | `RESEND_API_KEY` | For email | Resend API key; keep it in deployment secrets |
+| `SSLCOMMERZ_MODE` | For online payments | `sandbox` (default) or `live`; live mode requires HTTPS |
+| `SSLCOMMERZ_STORE_ID` | For online payments | SSLCommerz merchant store ID; keep it in deployment secrets |
+| `SSLCOMMERZ_STORE_PASSWORD` | For online payments | SSLCommerz merchant password; keep it in deployment secrets |
 
 Invitation and recovery messages require working email configuration. Do not
 commit `.env` files, Neon credentials, or provider secrets.
 
 ## Implemented foundation
 
-- Institution-scoped records and multiple active roles per user
+- Single-university data model and multiple active roles per user
+- Foundational university hierarchy, profiles, academic years, classrooms, and
+  recurring class schedules
+- Expanded role vocabulary for registrar, exam, finance, department, and
+  campus-service responsibilities
 - Password hashing, database-backed sessions, sign-in throttling, logout, and
   membership switching
 - Initial institution bootstrap, invitation acceptance, and password recovery
@@ -101,12 +111,43 @@ commit `.env` files, Neon credentials, or provider secrets.
   administration APIs
 - Separate private conversations and official university channels
 - Neon branch configuration with a private `uploads` bucket policy
-- Informational fee records only; there is no payment processing
+- Fee structures and invoices, SSLCommerz hosted checkout, server-side
+  transaction validation, idempotent payment settlement, receipts, and
+  institution-scoped refund request records
+
+## SSLCommerz sandbox and refunds
+
+1. Obtain sandbox merchant credentials from SSLCommerz and set
+   `SSLCOMMERZ_MODE=sandbox`, `SSLCOMMERZ_STORE_ID`, and
+   `SSLCOMMERZ_STORE_PASSWORD` in `.env.local` or your deployment secret store.
+   Keep these values server-side; never add them to client-side variables.
+2. Set `APP_URL` to the app's public URL. SSLCommerz must be able to reach the
+   `/api/sslcommerz/success`, `/api/sslcommerz/fail`,
+   `/api/sslcommerz/cancel`, and `/api/sslcommerz/ipn` routes. For local
+   end-to-end sandbox testing, use an HTTPS tunnel; `localhost` is not reachable
+   by the payment provider.
+3. Apply the development database migrations, sign in with a finance role,
+   create a BDT fee structure, and issue an invoice to an active student. Sign
+   in as that student (or a verified guardian), open **Fees & payments**, and
+   start checkout. Only a server-validated SSLCommerz transaction creates a
+   payment and receipt. Test failure, cancellation, and duplicate callbacks as
+   well; none should be treated as successful without server-side validation.
+4. To enable live payments, use SSLCommerz live merchant credentials, set
+   `SSLCOMMERZ_MODE=live`, and use a publicly reachable HTTPS `APP_URL`. Live
+   payment processing has not been verified in this repository environment.
+
+CampusHub records refund requests and finance-confirmed outcomes, but does not
+initiate a refund through SSLCommerz. Finance staff must process the refund
+through the merchant's approved gateway workflow first, then record its
+reference and outcome in CampusHub. Verified payments flagged for review are
+not automatically applied to invoices and require finance reconciliation.
 
 ## Limitations and operational cautions
 
 - The Prisma schema contains broader planned entities than the application
-  currently exposes as complete user workflows. File storage/uploads, push
+  currently exposes as complete user workflows. The new foundation models and
+  role values require a development-database migration before use. File
+  storage/uploads, push
   delivery, full moderation and retention tooling, and several library, hostel,
   transit, emergency, and document workflows still need implementation.
 - GPA/transcript behavior needs validation against each institution's grading
@@ -119,9 +160,6 @@ commit `.env` files, Neon credentials, or provider secrets.
   the deploying institution.
 - Do not treat this repository as audited, compliant, or ready for live student
   records without a dedicated security, privacy, and operational review.
-
-CampusHub intentionally excludes payment gateways, checkout, transactions,
-bank integrations, payment webhooks, and transaction-generated receipts.
 
 ## Repository
 

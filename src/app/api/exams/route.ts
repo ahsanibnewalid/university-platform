@@ -5,31 +5,83 @@ import {
   assertSameOrigin,
   requireSession,
 } from "@/lib/auth";
-import { readJsonObject, recordAudit, requiredText, teachingRoles, validDate } from "@/lib/api";
+import {
+  courseTeachingRoles,
+  departmentRoles,
+  examManagementRoles,
+  readJsonObject,
+  recordAudit,
+  requiredText,
+  studentRoles,
+  validDate,
+} from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const session = await requireSession();
-    const student = (
-      [CampusRole.STUDENT, CampusRole.MEDICAL_STUDENT, CampusRole.LAW_STUDENT] as CampusRole[]
-    ).includes(session.membership.role);
+    const session = await requireSession([
+      ...studentRoles,
+      CampusRole.PARENT,
+      ...examManagementRoles,
+    ]);
+    const { role } = session.membership;
+    const student = studentRoles.includes(role);
+    const parent = role === CampusRole.PARENT;
     const exams = await prisma.exam.findMany({
       where: {
         section: {
           term: { institutionId: session.membership.institutionId },
           ...(student
-            ? { enrollments: { some: { studentId: session.userId, status: EnrollmentStatus.ENROLLED } } }
-            : session.membership.role === CampusRole.FACULTY
-              ? { instructors: { some: { userId: session.userId } } }
-              : {}),
+            ? {
+                enrollments: {
+                  some: {
+                    studentId: session.userId,
+                    status: EnrollmentStatus.ENROLLED,
+                  },
+                },
+              }
+            : parent
+              ? {
+                  enrollments: {
+                    some: {
+                      status: EnrollmentStatus.ENROLLED,
+                      student: {
+                        studentGuardians: {
+                          some: {
+                            guardianId: session.userId,
+                            verifiedAt: { not: null },
+                          },
+                        },
+                      },
+                    },
+                  },
+                }
+              : courseTeachingRoles.includes(role)
+                ? { instructors: { some: { userId: session.userId } } }
+                : departmentRoles.includes(role)
+                  ? { course: { department: { chairId: session.userId } } }
+                  : {}),
         },
       },
       include: {
         section: { include: { course: { select: { code: true, title: true } } } },
         results: student
           ? { where: { studentId: session.userId, releasedAt: { not: null } } }
-          : { select: { studentId: true, points: true, releasedAt: true } },
+          : parent
+            ? {
+                where: {
+                  releasedAt: { not: null },
+                  student: {
+                    studentGuardians: {
+                      some: {
+                        guardianId: session.userId,
+                        verifiedAt: { not: null },
+                      },
+                    },
+                  },
+                },
+              }
+            : { select: { studentId: true, points: true, releasedAt: true } },
       },
       orderBy: { startsAt: "asc" },
       take: 100,
@@ -43,7 +95,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
-    const session = await requireSession(teachingRoles);
+    const session = await requireSession(examManagementRoles);
     const input = await readJsonObject(request);
     const sectionId = requiredText(input.sectionId, "Course section", 1, 100);
     const title = requiredText(input.title, "Exam title", 2, 160);
@@ -60,9 +112,11 @@ export async function POST(request: Request) {
       where: {
         id: sectionId,
         term: { institutionId: session.membership.institutionId },
-        ...(session.membership.role === CampusRole.FACULTY
+        ...(courseTeachingRoles.includes(session.membership.role)
           ? { instructors: { some: { userId: session.userId } } }
-          : {}),
+          : departmentRoles.includes(session.membership.role)
+            ? { course: { department: { chairId: session.userId } } }
+            : {}),
       },
       select: { id: true },
     });
@@ -78,7 +132,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     assertSameOrigin(request);
-    const session = await requireSession(teachingRoles);
+    const session = await requireSession(examManagementRoles);
     const input = await readJsonObject(request);
     const examId = requiredText(input.examId, "Exam", 1, 100);
     const studentId = requiredText(input.studentId, "Student", 1, 100);
@@ -94,9 +148,11 @@ export async function PATCH(request: Request) {
         id: examId,
         section: {
           term: { institutionId: session.membership.institutionId },
-          ...(session.membership.role === CampusRole.FACULTY
+          ...(courseTeachingRoles.includes(session.membership.role)
             ? { instructors: { some: { userId: session.userId } } }
-            : {}),
+            : departmentRoles.includes(session.membership.role)
+              ? { course: { department: { chairId: session.userId } } }
+              : {}),
           enrollments: { some: { studentId, status: EnrollmentStatus.ENROLLED } },
         },
       },

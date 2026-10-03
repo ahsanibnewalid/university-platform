@@ -6,9 +6,12 @@ import {
   requireSession,
 } from "@/lib/auth";
 import {
+  courseTeachingRoles,
+  departmentRoles,
   readJsonObject,
   recordAudit,
   requiredText,
+  studentRoles,
   teachingRoles,
   validDate,
 } from "@/lib/api";
@@ -16,13 +19,14 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const session = await requireSession();
+    const session = await requireSession([
+      ...studentRoles,
+      CampusRole.PARENT,
+      ...teachingRoles,
+    ]);
     const { institutionId, role } = session.membership;
-    const studentRole = ([
-      CampusRole.STUDENT,
-      CampusRole.MEDICAL_STUDENT,
-      CampusRole.LAW_STUDENT,
-    ] as CampusRole[]).includes(role);
+    const studentRole = studentRoles.includes(role);
+    const parentRole = role === CampusRole.PARENT;
     const assignments = await prisma.assignment.findMany({
       where: {
         section: {
@@ -33,9 +37,27 @@ export async function GET() {
                   some: { studentId: session.userId, status: EnrollmentStatus.ENROLLED },
                 },
               }
-            : role === CampusRole.FACULTY
+            : parentRole
+              ? {
+                  enrollments: {
+                    some: {
+                      status: EnrollmentStatus.ENROLLED,
+                      student: {
+                        studentGuardians: {
+                          some: {
+                            guardianId: session.userId,
+                            verifiedAt: { not: null },
+                          },
+                        },
+                      },
+                    },
+                  },
+                }
+              : courseTeachingRoles.includes(role)
               ? { instructors: { some: { userId: session.userId } } }
-              : {}),
+              : departmentRoles.includes(role)
+                ? { course: { department: { chairId: session.userId } } }
+                : {}),
         },
       },
       include: {
@@ -47,7 +69,9 @@ export async function GET() {
         },
         ...(studentRole
           ? { submissions: { where: { studentId: session.userId } } }
-          : { _count: { select: { submissions: true } } }),
+          : parentRole
+            ? {}
+            : { _count: { select: { submissions: true } } }),
       },
       orderBy: { dueAt: "asc" },
       take: 100,
@@ -81,9 +105,11 @@ export async function POST(request: Request) {
       where: {
         id: sectionId,
         term: { institutionId: session.membership.institutionId },
-        ...(session.membership.role === CampusRole.FACULTY
+        ...(courseTeachingRoles.includes(session.membership.role)
           ? { instructors: { some: { userId: session.userId } } }
-          : {}),
+          : departmentRoles.includes(session.membership.role)
+            ? { course: { department: { chairId: session.userId } } }
+            : {}),
       },
       select: { id: true },
     });
