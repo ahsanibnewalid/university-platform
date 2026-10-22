@@ -1,10 +1,10 @@
 import { authErrorResponse } from "@/lib/auth";
-import { readSslCommerzCallback } from "@/lib/sslcommerz-callback";
+import { releaseSslCommerzCheckout } from "@/lib/sslcommerz-callback";
 import { getPaymentReturnUrl } from "@/lib/sslcommerz";
 
 export async function POST(request: Request) {
   try {
-    await readSslCommerzCallback(request);
+    await releaseSslCommerzCheckout(request, "FAILED_RETURN");
     return Response.redirect(getPaymentReturnUrl("failed").toString(), 303);
   } catch (error) {
     try {

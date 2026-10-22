@@ -14,6 +14,22 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const session = await requireSession(studentRoles);
+    const profile = await prisma.studentProfile.findFirst({
+      where: {
+        userId: session.userId,
+        user: {
+          memberships: {
+            some: {
+              institutionId: session.membership.institutionId,
+              status: "ACTIVE",
+              role: { in: studentRoles },
+            },
+          },
+        },
+      },
+      select: { userId: true },
+    });
+    if (!profile) throw new AuthenticationError("An active student profile is required for course registration.", 403);
     const input = await readJsonObject(request);
     const sectionId = requiredText(input.sectionId, "Course section", 1, 100);
     const enrollment = await prisma.$transaction(
@@ -70,6 +86,22 @@ export async function DELETE(request: Request) {
     const session = await requireSession(studentRoles);
     const sectionId = new URL(request.url).searchParams.get("sectionId");
     if (!sectionId) throw new AuthenticationError("Course section is required.", 400);
+    const profile = await prisma.studentProfile.findFirst({
+      where: {
+        userId: session.userId,
+        user: {
+          memberships: {
+            some: {
+              institutionId: session.membership.institutionId,
+              status: "ACTIVE",
+              role: { in: studentRoles },
+            },
+          },
+        },
+      },
+      select: { userId: true },
+    });
+    if (!profile) throw new AuthenticationError("An active student profile is required for course registration.", 403);
     const enrollment = await prisma.enrollment.findFirst({
       where: {
         sectionId,

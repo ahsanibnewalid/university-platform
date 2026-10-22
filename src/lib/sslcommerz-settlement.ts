@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { InvoiceStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { AuthenticationError } from "@/lib/auth";
 import { financeRoles } from "@/lib/api";
@@ -26,6 +26,9 @@ async function requireVerifiedDetails(transactionId: string, validationId: strin
     include: { invoice: true },
   });
   if (!transaction) throw new AuthenticationError("Payment transaction was not found.", 404);
+  if (transaction.currency !== "BDT" || transaction.invoice.currency !== "BDT") {
+    throw new AuthenticationError("Siddheswari College payments must settle in BDT.", 400);
+  }
   const verified = await validateSslCommerzTransaction(validationId);
   if (
     !["VALID", "VALIDATED"].includes(String(verified.status ?? "").toUpperCase()) ||
@@ -36,14 +39,25 @@ async function requireVerifiedDetails(transactionId: string, validationId: strin
   ) {
     throw new AuthenticationError("Payment provider verification did not match the invoice.", 400);
   }
-  return { transaction, verified };
+  const payloadHash = createHash("sha256")
+    .update(JSON.stringify({
+      transactionId,
+      validationId,
+      status: verified.status,
+      tran_id: verified.tran_id,
+      amount: verified.amount,
+      currency: verified.currency,
+      bank_tran_id: verified.bank_tran_id,
+    }))
+    .digest("hex");
+  return { transaction, verified, payloadHash };
 }
 
 export async function verifyAndSettleSslCommerzPayment(
   transactionId: string,
   validationId: string,
 ) {
-  const { verified } = await requireVerifiedDetails(
+  const { verified, payloadHash } = await requireVerifiedDetails(
     transactionId,
     validationId,
   );
@@ -53,6 +67,17 @@ export async function verifyAndSettleSslCommerzPayment(
       include: { invoice: true },
     });
     if (!current) throw new AuthenticationError("Payment transaction was not found.", 404);
+    await tx.sSLCommerzLog.create({
+      data: {
+        institutionId: current.invoice.institutionId,
+        transactionId: current.transactionId,
+        validationId,
+        eventType: "gateway_validation",
+        outcome: "VERIFIED",
+        payloadHash,
+        message: "SSLCommerz server-side validation succeeded.",
+      },
+    });
     if (
       current.status === PaymentStatus.SUCCEEDED &&
       current.validationId === validationId
@@ -60,6 +85,64 @@ export async function verifyAndSettleSslCommerzPayment(
       return "succeeded" as const;
     }
     if (current.status === PaymentStatus.REVIEW) return "review" as const;
+    if (current.status === PaymentStatus.FAILED || current.status === PaymentStatus.CANCELLED) {
+      const lateSuccess = await tx.paymentTransaction.updateMany({
+        where: {
+          id: current.id,
+          status: { in: [PaymentStatus.FAILED, PaymentStatus.CANCELLED] },
+          validationId: null,
+        },
+        data: {
+          status: PaymentStatus.REVIEW,
+          validationId,
+          gatewayTransactionId:
+            typeof verified.bank_tran_id === "string"
+              ? verified.bank_tran_id.slice(0, 100)
+              : null,
+        },
+      });
+      if (lateSuccess.count === 1) {
+        const financeMemberships = await tx.membership.findMany({
+          where: {
+            institutionId: current.invoice.institutionId,
+            status: "ACTIVE",
+            role: { in: financeRoles },
+          },
+          select: { userId: true },
+        });
+        if (financeMemberships.length) {
+          await tx.notification.createMany({
+            data: [...new Set(financeMemberships.map(({ userId }) => userId))].map((userId) => ({
+              userId,
+              type: "finance.payment.review",
+              title: "Late payment requires review",
+              body: `Payment ${current.transactionId} was verified after its checkout was marked ${current.status.toLowerCase()}; finance must reconcile it before applying it to the invoice.`,
+            })),
+          });
+        }
+        await tx.auditEvent.create({
+          data: {
+            institutionId: current.invoice.institutionId,
+            action: "finance.payment.late_success_review_required",
+            entityType: "PaymentTransaction",
+            entityId: current.id,
+            metadata: {
+              transactionId: current.transactionId,
+              priorStatus: current.status,
+              validationId,
+              amount: current.amount.toFixed(2),
+              currency: current.currency,
+            },
+          },
+        });
+        return "review" as const;
+      }
+      const latest = await tx.paymentTransaction.findUnique({
+        where: { id: current.id },
+        select: { status: true },
+      });
+      return latest?.status === PaymentStatus.REVIEW ? "review" as const : "not_pending" as const;
+    }
     if (current.status !== PaymentStatus.PENDING) return "not_pending" as const;
 
     const riskLevel = String(verified.risk_level ?? "0");

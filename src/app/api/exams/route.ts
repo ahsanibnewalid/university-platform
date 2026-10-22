@@ -27,6 +27,44 @@ export async function GET() {
     const { role } = session.membership;
     const student = studentRoles.includes(role);
     const parent = role === CampusRole.PARENT;
+    if (student) {
+      const profile = await prisma.studentProfile.findFirst({
+        where: {
+          userId: session.userId,
+          user: {
+            memberships: {
+              some: {
+                institutionId: session.membership.institutionId,
+                status: "ACTIVE",
+                role: { in: studentRoles },
+              },
+            },
+          },
+        },
+        select: { userId: true },
+      });
+      if (!profile) throw new AuthenticationError("An active student profile is required to view exams and results.", 403);
+    }
+    const parentProfiles = parent
+      ? await prisma.studentProfile.findMany({
+          where: {
+            user: {
+              memberships: {
+                some: {
+                  institutionId: session.membership.institutionId,
+                  status: "ACTIVE",
+                  role: { in: studentRoles },
+                },
+              },
+              studentGuardians: {
+                some: { guardianId: session.userId, verifiedAt: { not: null } },
+              },
+            },
+          },
+          select: { userId: true },
+        })
+      : [];
+    const parentStudentIds = parentProfiles.map((profile) => profile.userId);
     const exams = await prisma.exam.findMany({
       where: {
         section: {
@@ -44,15 +82,8 @@ export async function GET() {
               ? {
                   enrollments: {
                     some: {
+                      studentId: { in: parentStudentIds },
                       status: EnrollmentStatus.ENROLLED,
-                      student: {
-                        studentGuardians: {
-                          some: {
-                            guardianId: session.userId,
-                            verifiedAt: { not: null },
-                          },
-                        },
-                      },
                     },
                   },
                 }
@@ -70,15 +101,8 @@ export async function GET() {
           : parent
             ? {
                 where: {
+                  studentId: { in: parentStudentIds },
                   releasedAt: { not: null },
-                  student: {
-                    studentGuardians: {
-                      some: {
-                        guardianId: session.userId,
-                        verifiedAt: { not: null },
-                      },
-                    },
-                  },
                 },
               }
             : { select: { studentId: true, points: true, releasedAt: true } },
@@ -143,6 +167,22 @@ export async function PATCH(request: Request) {
         ? input.points
         : -1;
     if (points < 0) throw new AuthenticationError("Result points must be zero or higher.", 400);
+    const studentProfile = await prisma.studentProfile.findFirst({
+      where: {
+        userId: studentId,
+        user: {
+          memberships: {
+            some: {
+              institutionId: session.membership.institutionId,
+              status: "ACTIVE",
+              role: { in: studentRoles },
+            },
+          },
+        },
+      },
+      select: { userId: true },
+    });
+    if (!studentProfile) throw new AuthenticationError("Active student profile not found.", 404);
     const exam = await prisma.exam.findFirst({
       where: {
         id: examId,

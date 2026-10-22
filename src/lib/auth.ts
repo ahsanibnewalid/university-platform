@@ -134,16 +134,32 @@ export async function requireSession(roles?: CampusRole[]) {
 
 export function assertSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  if (!origin) return;
-  let originHost: string;
+  if (!origin) {
+    throw new AuthenticationError("A same-origin request origin is required.", 403);
+  }
+
+  let parsedOrigin: URL;
   try {
-    originHost = new URL(origin).host;
+    parsedOrigin = new URL(origin);
   } catch {
     throw new AuthenticationError("Invalid request origin.", 403);
   }
+  if (parsedOrigin.protocol !== "https:" && parsedOrigin.protocol !== "http:") {
+    throw new AuthenticationError("Invalid request origin.", 403);
+  }
+
   const requestHost =
-    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (!requestHost || originHost !== requestHost) {
+    request.headers.get("x-forwarded-host")?.split(",")[0].trim() ??
+    request.headers.get("host");
+  const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0].trim();
+  const requestProtocol = forwardedProtocol
+    ? `${forwardedProtocol.replace(/:$/, "")}:`
+    : new URL(request.url).protocol;
+  if (
+    !requestHost ||
+    parsedOrigin.host.toLowerCase() !== requestHost.toLowerCase() ||
+    parsedOrigin.protocol !== requestProtocol
+  ) {
     throw new AuthenticationError("Cross-origin request rejected.", 403);
   }
 }
