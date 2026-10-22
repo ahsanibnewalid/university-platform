@@ -6,7 +6,8 @@ on:
     branches: [main, master]
 
 jobs:
-  quality:
+  test-ci:
+    name: test:ci
     runs-on: ubuntu-latest
     services:
       postgres:
