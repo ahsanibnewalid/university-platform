@@ -42,7 +42,7 @@ test("SSLCommerz settlement validates BDT and commits settlement in a serializab
   assert.match(route, /transaction\\.currency !== "BDT" \\|\\| transaction\\.invoice\\.currency !== "BDT"/);
   assert.match(route, /prisma\\.\\$transaction/);
   assert.match(route, /tx\\.payment\\.create/);
-  assert.match(route, /tx\\.sslCommerzLog\\.create/);
+  assert.match(route, /tx\\.sSLCommerzLog\\.create/);
 });
 
 test("payroll reads employee payslips by authenticated user and calculates within a serializable transaction", () => {
