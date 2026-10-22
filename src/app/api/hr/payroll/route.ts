@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth";
 import { readJsonObject, requiredText, validDate } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { calculateProratedBaseSalary } from "@/lib/payroll-policy";
 
 const payrollManagerRoles: CampusRole[] = [
   CampusRole.SUPER_ADMIN,
@@ -368,8 +369,8 @@ export async function POST(request: Request) {
               where: {
                 active: true,
                 currency: "BDT",
-                effectiveFrom: { lte: run.period.startsAt },
-                OR: [{ effectiveUntil: null }, { effectiveUntil: { gte: run.period.endsAt } }],
+                effectiveFrom: { lte: run.period.endsAt },
+                OR: [{ effectiveUntil: null }, { effectiveUntil: { gte: run.period.startsAt } }],
               },
               orderBy: { effectiveFrom: "desc" },
             },
@@ -379,14 +380,19 @@ export async function POST(request: Request) {
         if (employees.length === 0) throw new AuthenticationError("No active employees are configured for payroll.", 400);
         const missingSalary = employees.filter((employee) => employee.salaryStructures.length === 0);
         const overlappingSalary = employees.filter((employee) => employee.salaryStructures.length > 1);
-        const midPeriodHires = employees.filter((employee) =>
-          employee.hiredAt !== null &&
-          employee.hiredAt > run.period.startsAt &&
-          employee.hiredAt <= run.period.endsAt,
-        );
-        if (missingSalary.length || overlappingSalary.length || midPeriodHires.length) {
+        const invalidSalaryCoverage = employees.filter((employee) => {
+          const salary = employee.salaryStructures[0];
+          const joinedMidPeriod = employee.hiredAt !== null &&
+            employee.hiredAt > run.period.startsAt &&
+            employee.hiredAt <= run.period.endsAt;
+          if (!salary) return true;
+          if (!joinedMidPeriod && salary.effectiveFrom > run.period.startsAt) return true;
+          if (salary.effectiveUntil && salary.effectiveUntil < run.period.endsAt) return true;
+          return false;
+        });
+        if (missingSalary.length || overlappingSalary.length || invalidSalaryCoverage.length) {
           throw new AuthenticationError(
-            `Payroll blocked: ${missingSalary.length} employee(s) lack a salary structure covering the full period, ${overlappingSalary.length} employee(s) have overlapping salary structures, and ${midPeriodHires.length} employee(s) were hired mid-period and need an approved proration policy.`,
+            `Payroll blocked: ${missingSalary.length} employee(s) lack an applicable BDT salary structure, ${overlappingSalary.length} employee(s) have overlapping salary structures, and ${invalidSalaryCoverage.length} employee(s) have incomplete salary coverage. Review dates and approved policies before retrying.`,
             409,
           );
         }
@@ -414,7 +420,18 @@ export async function POST(request: Request) {
           const deductions = employeeAdjustments
             .filter((adjustment) => adjustment.type === PayrollAdjustmentType.DEDUCTION)
             .reduce((total, adjustment) => total.add(adjustment.amount), new Prisma.Decimal(0));
-          const grossSalary = salary.baseSalary.add(allowances);
+          const joinedMidPeriod = employee.hiredAt !== null &&
+            employee.hiredAt > run.period.startsAt &&
+            employee.hiredAt <= run.period.endsAt;
+          const baseSalaryForPeriod = joinedMidPeriod
+            ? calculateProratedBaseSalary({
+                baseSalaryBdt: salary.baseSalary,
+                periodStart: run.period.startsAt,
+                periodEnd: run.period.endsAt,
+                joiningDate: new Date(Math.max(employee.hiredAt!.getTime(), salary.effectiveFrom.getTime())),
+              }).amountBdt
+            : salary.baseSalary;
+          const grossSalary = baseSalaryForPeriod.add(allowances);
           const netSalary = grossSalary.sub(deductions);
           if (netSalary.lessThan(0)) {
             throw new AuthenticationError(`Payroll blocked: deductions exceed gross pay for employee ${employee.employeeNumber}.`, 409);
@@ -431,7 +448,9 @@ export async function POST(request: Request) {
               currency: "BDT",
               status: PayslipStatus.GENERATED,
               breakdown: {
-                baseSalary: salary.baseSalary.toFixed(2),
+                contractBaseSalary: salary.baseSalary.toFixed(2),
+                baseSalary: baseSalaryForPeriod.toFixed(2),
+                prorationApplied: joinedMidPeriod,
                 allowances: allowances.toFixed(2),
                 deductions: deductions.toFixed(2),
                 adjustmentItems: employeeAdjustments.map((adjustment) => ({
