@@ -8,6 +8,8 @@ test("fee, attendance, and academic endpoints enforce authenticated student scop
   const fees = read("../src/app/api/fees/route.ts");
   const attendance = read("../src/app/api/academic/attendance/route.ts");
   const enrollment = read("../src/app/api/academic/enrollment/route.ts");
+  const registration = read("../src/app/api/academic/registration/route.ts");
+  const registrationService = read("../src/lib/academic-registration.ts");
   assert.match(fees, /requestedStudentId !== profile\.userId/);
   assert.match(fees, /guardianLink\.findFirst/);
   assert.match(attendance, /requireSession/);
