@@ -16,6 +16,7 @@ export type AcademicRegistrationResult = {
 export async function registerStudentForCourseSections(input: {
   institutionId: string;
   programEnrollmentId: string;
+  actorId: string;
   sectionIds: string[];
 }): Promise<AcademicRegistrationResult> {
   const sectionIds = [...new Set(input.sectionIds.map((id) => id.trim()).filter(Boolean))];
@@ -102,6 +103,7 @@ export async function registerStudentForCourseSections(input: {
     await tx.auditEvent.create({
       data: {
         institutionId: input.institutionId,
+        actorId: input.actorId,
         action: "academic.course_sections.registered",
         entityType: "StudentAcademicEnrollment",
         entityId: programEnrollment.id,
