@@ -47,7 +47,8 @@ test("SSLCommerz settlement validates BDT and commits settlement in a serializab
   assert.ok(route.includes("tx.sSLCommerzLog.create"));
   const callback = read("src/lib/sslcommerz-callback.ts");
   assert.ok(callback.includes("validateSslCommerzIpnHash"));
-  assert.ok(callback.includes("timingSafeEqual"));
+  const signature = read("src/lib/sslcommerz-signature.ts");
+  assert.ok(signature.includes("timingSafeEqual"));
   assert.ok(callback.includes('readSslCommerzCallback(request, true)'));
 });
 
