@@ -5,6 +5,7 @@ import { financeRoles } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { validateSslCommerzTransaction } from "@/lib/sslcommerz";
 import { assessPaymentSettlement } from "@/lib/payment-policy";
+import { needsManualReconciliationAfterLateSuccess } from "@/lib/payment-callback-policy";
 
 function amountInMinorUnits(value: unknown) {
   if (typeof value !== "string" && typeof value !== "number") {
@@ -86,7 +87,7 @@ export async function verifyAndSettleSslCommerzPayment(
       return "succeeded" as const;
     }
     if (current.status === PaymentStatus.REVIEW) return "review" as const;
-    if (current.status === PaymentStatus.FAILED || current.status === PaymentStatus.CANCELLED) {
+    if (needsManualReconciliationAfterLateSuccess(current.status)) {
       const lateSuccess = await tx.paymentTransaction.updateMany({
         where: {
           id: current.id,
