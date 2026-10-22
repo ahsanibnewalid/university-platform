@@ -85,6 +85,64 @@ export async function verifyAndSettleSslCommerzPayment(
       return "succeeded" as const;
     }
     if (current.status === PaymentStatus.REVIEW) return "review" as const;
+    if (current.status === PaymentStatus.FAILED || current.status === PaymentStatus.CANCELLED) {
+      const lateSuccess = await tx.paymentTransaction.updateMany({
+        where: {
+          id: current.id,
+          status: { in: [PaymentStatus.FAILED, PaymentStatus.CANCELLED] },
+          validationId: null,
+        },
+        data: {
+          status: PaymentStatus.REVIEW,
+          validationId,
+          gatewayTransactionId:
+            typeof verified.bank_tran_id === "string"
+              ? verified.bank_tran_id.slice(0, 100)
+              : null,
+        },
+      });
+      if (lateSuccess.count === 1) {
+        const financeMemberships = await tx.membership.findMany({
+          where: {
+            institutionId: current.invoice.institutionId,
+            status: "ACTIVE",
+            role: { in: financeRoles },
+          },
+          select: { userId: true },
+        });
+        if (financeMemberships.length) {
+          await tx.notification.createMany({
+            data: [...new Set(financeMemberships.map(({ userId }) => userId))].map((userId) => ({
+              userId,
+              type: "finance.payment.review",
+              title: "Late payment requires review",
+              body: `Payment ${current.transactionId} was verified after its checkout was marked ${current.status.toLowerCase()}; finance must reconcile it before applying it to the invoice.`,
+            })),
+          });
+        }
+        await tx.auditEvent.create({
+          data: {
+            institutionId: current.invoice.institutionId,
+            action: "finance.payment.late_success_review_required",
+            entityType: "PaymentTransaction",
+            entityId: current.id,
+            metadata: {
+              transactionId: current.transactionId,
+              priorStatus: current.status,
+              validationId,
+              amount: current.amount.toFixed(2),
+              currency: current.currency,
+            },
+          },
+        });
+        return "review" as const;
+      }
+      const latest = await tx.paymentTransaction.findUnique({
+        where: { id: current.id },
+        select: { status: true },
+      });
+      return latest?.status === PaymentStatus.REVIEW ? "review" as const : "not_pending" as const;
+    }
     if (current.status !== PaymentStatus.PENDING) return "not_pending" as const;
 
     const riskLevel = String(verified.risk_level ?? "0");
