@@ -163,6 +163,8 @@ enum CampusRole {
   MEDICAL_STUDENT
   LAW_STUDENT
   SUPER_ADMIN
+  ACCOUNTANT
+  OFFICE_STAFF
 }
 
 enum MembershipStatus {
@@ -1299,7 +1301,7 @@ model FeeRecord {
   studentId     String
   description   String
   amountDue     Decimal     @db.Decimal(12, 2)
-  currency      String      @default("USD")
+  currency      String      @default("BDT")
   dueAt         DateTime
   createdAt     DateTime    @default(now())
   institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
