@@ -81,6 +81,7 @@ async function main() {
       count: classification.length,
       classifiedCount: classification.filter((item) => item.proposedType !== null).length,
       unresolvedCount: classification.filter((item) => item.proposedType === null).length,
+      mismatchCount: classification.filter((item) => item.proposedType !== null && item.proposedType !== item.currentProgramType).length,
       records: classification,
       categories,
       note: "Suggested mappings are advisory only. Confirm against the Registrar-approved Siddheswari College catalogue before changing production data.",
@@ -88,7 +89,7 @@ async function main() {
   };
 
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-  if (orphanedFeeRecords.length || classification.some((item) => item.proposedType === null)) {
+  if (orphanedFeeRecords.length || classification.some((item) => item.proposedType === null || item.proposedType !== item.currentProgramType)) {
     process.exitCode = 2;
   }
 }
