@@ -6,7 +6,7 @@ In **Settings → Rules → Rulesets** (or **Branches → Add branch protection 
 
 - Require a pull request before merging.
 - Require at least **1 approval** from a reviewer other than the author; dismiss stale approvals when new commits are pushed.
-- Require status checks to pass before merging and select the exact check **`test:ci`** (the job name in `.github/workflows/quality.yml`). Also require the workflow's migration and build steps by keeping them in that same job.
+- Require status checks to pass before merging and select the exact checks **`test:ci`** and **`dependency-audit`** from `.github/workflows/quality.yml`. Migration and build remain part of `test:ci`. Do not mark the audit as optional: the current lockfile has a high-severity transitive `braces` advisory, so this check blocks merges until the dependency path is remediated or a reviewed risk decision is made.
 - Require branches to be up to date before merging.
 - Require conversation resolution.
 - Block force pushes and branch deletion.
