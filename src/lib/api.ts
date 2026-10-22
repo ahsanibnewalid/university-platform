@@ -86,6 +86,7 @@ export const departmentRoles: CampusRole[] = [
 export const financeRoles: CampusRole[] = [
   ...administrativeRoles,
   CampusRole.FINANCE_ADMIN,
+  CampusRole.ACCOUNTANT,
 ];
 
 export const teachingRoles: CampusRole[] = [
