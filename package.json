@@ -11,9 +11,10 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "type-check": "tsc --noEmit",
-    "test": "node --test",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs tests/*.spec.ts",
     "test:ci": "npm run lint && npm run type-check && npm run test",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:audit-migration": "node --experimental-strip-types scripts/audit-migration-data.ts"
   },
   "dependencies": {
     "@neon/config": "^1.8.3",
