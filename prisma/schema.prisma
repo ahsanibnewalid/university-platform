@@ -1414,6 +1414,7 @@ model StudentAcademicEnrollment {
 model GradePoint {
   id                 String      @id @default(cuid())
   institutionId      String
+  programType        ProgramType
   letterGrade        String
   minimumPercentage  Decimal     @db.Decimal(5, 2)
   maximumPercentage  Decimal     @db.Decimal(5, 2)
@@ -1422,8 +1423,8 @@ model GradePoint {
   createdAt          DateTime    @default(now())
   institution        Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
-  @@unique([institutionId, letterGrade])
-  @@index([institutionId, minimumPercentage, maximumPercentage])
+  @@unique([institutionId, programType, letterGrade])
+  @@index([institutionId, programType, minimumPercentage, maximumPercentage])
 }
 
 model TranscriptResult {
