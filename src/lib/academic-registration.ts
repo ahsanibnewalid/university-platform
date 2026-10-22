@@ -34,11 +34,24 @@ export async function registerStudentForCourseSections(input: {
         institutionId: input.institutionId,
         status: ProgramEnrollmentStatus.ACTIVE,
       },
-      include: { academicSession: true, program: true },
+      include: {
+        academicSession: true,
+        program: { include: { department: { select: { institutionId: true } } } },
+      },
     });
     if (!programEnrollment) {
       throw new AuthenticationError("An active programme enrollment is required.", 404);
     }
+    if (programEnrollment.academicSession.status !== "ACTIVE") {
+      throw new AuthenticationError("Course registration requires an active academic session.", 409);
+    }
+    if (programEnrollment.academicSession.programId && programEnrollment.academicSession.programId !== programEnrollment.programId) {
+      throw new AuthenticationError("Programme enrollment does not match the selected academic session.", 409);
+    }
+    if (programEnrollment.program.department.institutionId !== input.institutionId) {
+      throw new AuthenticationError("Programme does not belong to this college.", 403);
+    }
+
     const sections = await tx.courseSection.findMany({
       where: {
         id: { in: sectionIds },
