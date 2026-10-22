@@ -7,7 +7,7 @@ export function createSslCommerzVerifySign(
 ): string {
   const signedValues: Record<string, string> = { ...values };
   signedValues.store_passwd = createHash("md5").update(storePassword).digest("hex");
-  const serialized = [...keys, "store_passwd"]
+  const serialized = [...new Set([...keys, "store_passwd"])]
     .sort()
     .map((key) => `${key}=${signedValues[key] ?? ""}`)
     .join("&");
