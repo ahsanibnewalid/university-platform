@@ -157,7 +157,7 @@ export async function POST(request: Request) {
             : {}),
         },
       });
-      await tx.sslCommerzLog.create({
+      await tx.sSLCommerzLog.create({
         data: {
           institutionId: current.invoice.institutionId,
           transactionId: current.transactionId,
