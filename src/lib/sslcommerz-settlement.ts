@@ -67,7 +67,7 @@ export async function verifyAndSettleSslCommerzPayment(
       include: { invoice: true },
     });
     if (!current) throw new AuthenticationError("Payment transaction was not found.", 404);
-    await tx.sslCommerzLog.create({
+    await tx.sSLCommerzLog.create({
       data: {
         institutionId: current.invoice.institutionId,
         transactionId: current.transactionId,
