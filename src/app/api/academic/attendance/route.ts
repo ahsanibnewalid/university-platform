@@ -90,8 +90,28 @@ export async function GET(request: Request) {
     const sectionId = new URL(request.url).searchParams.get("sectionId");
     if (!sectionId) throw new AuthenticationError("sectionId is required.", 400);
 
+    const role = session.membership.role;
+    if (studentRoles.includes(role)) {
+      const profile = await prisma.studentProfile.findFirst({
+        where: {
+          userId: session.userId,
+          user: {
+            memberships: {
+              some: {
+                institutionId: session.membership.institutionId,
+                status: MembershipStatus.ACTIVE,
+                role: { in: studentRoles },
+              },
+            },
+          },
+        },
+        select: { userId: true },
+      });
+      if (!profile) throw new AuthenticationError("An active student profile is required to view attendance.", 403);
+    }
+
     const sectionScope = await scopedSectionWhere(
-      session.membership.role,
+      role,
       session.userId,
     );
     const section = await prisma.courseSection.findFirst({
@@ -126,7 +146,6 @@ export async function GET(request: Request) {
     });
     if (!section) throw new AuthenticationError("Course section not found or access denied.", 404);
 
-    const role = session.membership.role;
     const visibleStudents = studentRoles.includes(role)
       ? section.enrollments.filter((enrollment) => enrollment.studentId === session.userId)
       : section.enrollments;
@@ -141,7 +160,25 @@ export async function GET(request: Request) {
         },
         select: { studentId: true },
       });
-      parentStudentIds = new Set(links.map((link) => link.studentId));
+      const linkedStudentIds = links.map((link) => link.studentId);
+      const linkedProfiles = linkedStudentIds.length
+        ? await prisma.studentProfile.findMany({
+            where: {
+              userId: { in: linkedStudentIds },
+              user: {
+                memberships: {
+                  some: {
+                    institutionId: session.membership.institutionId,
+                    status: MembershipStatus.ACTIVE,
+                    role: { in: studentRoles },
+                  },
+                },
+              },
+            },
+            select: { userId: true },
+          })
+        : [];
+      parentStudentIds = new Set(linkedProfiles.map((profile) => profile.userId));
     }
 
     const targetEnrollments = role === CampusRole.PARENT
@@ -252,7 +289,23 @@ export async function POST(request: Request) {
     if (!meeting) throw new AuthenticationError("Class meeting not found or access denied.", 404);
 
     const enrolledStudentIds = new Set(meeting.section.enrollments.map((enrollment) => enrollment.studentId));
-    if (records.some((record) => !enrolledStudentIds.has(record.studentId))) {
+    const activeProfiles = await prisma.studentProfile.findMany({
+      where: {
+        userId: { in: [...enrolledStudentIds] },
+        user: {
+          memberships: {
+            some: {
+              institutionId: session.membership.institutionId,
+              status: MembershipStatus.ACTIVE,
+              role: { in: studentRoles },
+            },
+          },
+        },
+      },
+      select: { userId: true },
+    });
+    const activeProfileIds = new Set(activeProfiles.map((profile) => profile.userId));
+    if (records.some((record) => !enrolledStudentIds.has(record.studentId) || !activeProfileIds.has(record.studentId))) {
       throw new AuthenticationError("Attendance can only be recorded for active students enrolled in this section.", 400);
     }
 
