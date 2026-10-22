@@ -26,7 +26,7 @@ test("validates SSLCommerz v4 verify_sign and rejects tampered signed fields", (
 test("safe risk flag can settle only when invoice lock and balance are consistent", () => {
   const result = assessPaymentSettlement({
     riskLevel: "0",
-    invoiceStatus: InvoiceStatus.OPEN,
+    invoiceStatus: InvoiceStatus.ISSUED,
     checkoutLock: "SC_TEST_001",
     transactionId: "SC_TEST_001",
     paidAmountBdt: decimal("0.00"),
@@ -40,7 +40,7 @@ test("safe risk flag can settle only when invoice lock and balance are consisten
 test("risk flag 1 is held for finance review, not automatically applied", () => {
   const result = assessPaymentSettlement({
     riskLevel: "1",
-    invoiceStatus: InvoiceStatus.OPEN,
+    invoiceStatus: InvoiceStatus.ISSUED,
     checkoutLock: "SC_TEST_001",
     transactionId: "SC_TEST_001",
     paidAmountBdt: decimal("0.00"),
@@ -59,7 +59,7 @@ test("allows partial BDT payments but rejects overpayment", () => {
 test("overpayment and cancelled invoices require review", () => {
   const overpaid = assessPaymentSettlement({
     riskLevel: "0",
-    invoiceStatus: InvoiceStatus.OPEN,
+    invoiceStatus: InvoiceStatus.ISSUED,
     checkoutLock: "SC_TEST_001",
     transactionId: "SC_TEST_001",
     paidAmountBdt: decimal("90.00"),
