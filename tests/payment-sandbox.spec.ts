@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { InvoiceStatus, Prisma } from "@prisma/client";
 import { assessPaymentSettlement, validatePartialPaymentBdt } from "../src/lib/payment-policy.ts";
 import { createSslCommerzVerifySign, verifySslCommerzVerifySign } from "../src/lib/sslcommerz-signature.ts";
+import { needsManualReconciliationAfterLateSuccess } from "../src/lib/payment-callback-policy.ts";
 
 const decimal = (value: string) => new Prisma.Decimal(value);
 const fields = ["tran_id", "val_id", "amount", "currency", "status", "store_id"];
@@ -79,4 +80,11 @@ test("overpayment and cancelled invoices require review", () => {
   });
   assert.ok(cancelled.reasons.includes("CANCELLED_INVOICE"));
   assert.ok(cancelled.reasons.includes("CHECKOUT_LOCK_MISMATCH"));
+});
+
+test("late success after a cancelled or failed checkout requires manual reconciliation", () => {
+  assert.equal(needsManualReconciliationAfterLateSuccess("CANCELLED"), true);
+  assert.equal(needsManualReconciliationAfterLateSuccess("FAILED"), true);
+  assert.equal(needsManualReconciliationAfterLateSuccess("PENDING"), false);
+  assert.equal(needsManualReconciliationAfterLateSuccess("SUCCEEDED"), false);
 });
