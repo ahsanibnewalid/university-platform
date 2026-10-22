@@ -448,6 +448,7 @@ model User {
   parentProfile                ParentProfile?
   staffProfile                 StaffProfile?
   studentInvoices              Invoice[]               @relation("InvoiceStudent")
+  feeRecords                   FeeRecord[]              @relation("FeeRecordStudent")
   initiatedPayments            Payment[]               @relation("PaymentInitiator")
   requestedRefunds             Refund[]                @relation("RefundRequester")
   reviewedRefunds              Refund[]                @relation("RefundReviewer")
@@ -1601,6 +1602,7 @@ model FeeRecord {
   dueAt         DateTime
   createdAt     DateTime    @default(now())
   institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  student       User        @relation("FeeRecordStudent", fields: [studentId], references: [id], onDelete: Restrict)
 
   @@index([institutionId, studentId, dueAt])
 }
