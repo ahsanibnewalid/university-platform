@@ -1,4 +1,4 @@
-import { CampusRole, MembershipStatus } from "@prisma/client";
+import { CampusRole, MembershipStatus, Prisma } from "@prisma/client";
 import {
   AuthenticationError,
   authErrorResponse,
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
     const input = await readJsonObject(request);
     const studentId = requiredText(input.studentId, "Student", 1, 100);
     const description = requiredText(input.description, "Fee record", 2, 180);
-    const amountDue =
+    const amountDueValue =
       typeof input.amountDue === "number" &&
       Number.isFinite(input.amountDue) &&
       input.amountDue >= 0 &&
@@ -150,8 +150,12 @@ export async function POST(request: Request) {
         ? input.amountDue
         : -1;
 
-    if (amountDue < 0) {
+    if (amountDueValue < 0) {
       throw new AuthenticationError("Amount due must be zero or greater.", 400);
+    }
+    const amountDue = new Prisma.Decimal(amountDueValue);
+    if (amountDue.decimalPlaces() > 2) {
+      throw new AuthenticationError("Amount due can have at most two decimal places.", 400);
     }
     if (input.currency !== undefined && input.currency !== "BDT") {
       throw new AuthenticationError("Siddheswari College fee records must use BDT.", 400);
