@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { CampusRole, InvoiceStatus, PaymentStatus, Prisma } from "@prisma/client";
+import { InvoiceStatus, PaymentStatus, Prisma } from "@prisma/client";
 import {
   AuthenticationError,
   authErrorResponse,
@@ -28,7 +28,7 @@ function toVerifiedAmount(value: unknown) {
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
-    const session = await requireSession([...financeRoles, CampusRole.HR]);
+    const session = await requireSession(financeRoles);
     const input = await readJsonObject(request);
     const transactionId = requiredText(input.transactionId, "Payment transaction", 1, 30);
 
