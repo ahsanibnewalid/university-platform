@@ -19,8 +19,9 @@ data.
 ## Product areas
 
 - **Academics:** courses, registration, faculties, departments, programs,
-  batches, student and teacher profiles, academic years, terms, timetables,
-  assignments, attendance, exams, results, and transcripts
+  batches, student and teacher profiles, academic years, academic sessions,
+  program enrollment with National University registration tracking, terms,
+  timetables, assignments, attendance summaries, exams, results, and transcript records
 - **Community and social:** campus feed, communities, posts, comments,
   reactions, polls, events, and notifications
 - **Communication:** private conversations, official university channels,
@@ -31,8 +32,10 @@ data.
   research collaboration
 - **Administration:** institution membership, invitations, role-aware access,
   and reporting
-- **Finance:** fee structures, student invoices, SSLCommerz hosted checkout,
-  server-verified payments, receipts, and refund request records
+- **Finance and HR:** BDT fee structures and invoices, SSLCommerz hosted checkout,
+  server-verified/idempotent payment settlement, reconciliation audit logs,
+  receipts, employee profiles, salary structures, payroll periods/runs,
+  allowances, deductions, and payslips
 
 ## Requirements
 
@@ -114,6 +117,33 @@ commit `.env` files, Neon credentials, or provider secrets.
 - Fee structures and invoices, SSLCommerz hosted checkout, server-side
   transaction validation, idempotent payment settlement, receipts, and
   institution-scoped refund request records
+
+## Siddheswari academic catalogue seed
+
+The seed command is deliberately configuration-driven: it never invents department
+codes, student records, or grading policies. First create the institution and
+approved departments, then provide the exact program catalogue to seed.
+
+Example (replace the slug and department code with values that exist in the
+target database):
+
+```bash
+export SEED_INSTITUTION_SLUG="siddheswari-college"
+export SIDDHESWARI_PROGRAMS_JSON='[
+  {
+    "departmentCode": "REPLACE_WITH_APPROVED_CODE",
+    "name": "HSC Science",
+    "code": "HSC-SCI",
+    "level": "HSC",
+    "programType": "HSC"
+  }
+]'
+npm run db:seed
+```
+
+The seeder is idempotent: existing department/program-code pairs are left
+unchanged. It does not seed GradePoint values because HSC and National
+University programs require college-approved grading policies.
 
 ## SSLCommerz sandbox and refunds
 
