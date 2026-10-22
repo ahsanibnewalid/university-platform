@@ -4,7 +4,7 @@ Configure this in **Settings → Rules → Rulesets** (or Branches → branch pr
 
 - Require a pull request before merging.
 - Require at least **1 approving review**; dismiss stale approvals when new commits are pushed.
-- Require status checks to pass before merging. Select the exact check name emitted by the workflow, currently **`quality`** (the job name), and ensure it runs on pull requests. The npm script inside it is `test:ci`; GitHub branch protection checks the workflow/job status name, not the npm script label.
+- Require status checks to pass before merging. Select the exact check name emitted by the workflow, **`test:ci`** (the job name), and ensure it runs on pull requests.
 - Require branches to be up to date before merging.
 - Require conversation resolution.
 - Block force pushes and branch deletion.
