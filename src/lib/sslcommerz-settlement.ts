@@ -4,6 +4,7 @@ import { AuthenticationError } from "@/lib/auth";
 import { financeRoles } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { validateSslCommerzTransaction } from "@/lib/sslcommerz";
+import { assessPaymentSettlement } from "@/lib/payment-policy";
 
 function amountInMinorUnits(value: unknown) {
   if (typeof value !== "string" && typeof value !== "number") {
@@ -147,12 +148,16 @@ export async function verifyAndSettleSslCommerzPayment(
 
     const riskLevel = String(verified.risk_level ?? "0");
     const amount = current.amount;
-    const nextPaidAmount = current.invoice.paidAmount.add(amount);
-    const requiresReview =
-      riskLevel !== "0" ||
-      current.invoice.status === InvoiceStatus.CANCELLED ||
-      current.invoice.checkoutLock !== current.transactionId ||
-      nextPaidAmount.greaterThan(current.invoice.totalAmount);
+    const settlementAssessment = assessPaymentSettlement({
+      riskLevel,
+      invoiceStatus: current.invoice.status,
+      checkoutLock: current.invoice.checkoutLock,
+      transactionId: current.transactionId,
+      paidAmountBdt: current.invoice.paidAmount,
+      paymentAmountBdt: amount,
+      invoiceTotalBdt: current.invoice.totalAmount,
+    });
+    const { requiresReview, nextPaidAmountBdt: nextPaidAmount } = settlementAssessment;
 
     const claimed = await tx.paymentTransaction.updateMany({
       where: { id: current.id, status: PaymentStatus.PENDING },
