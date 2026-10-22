@@ -19,7 +19,7 @@ After saving the rule, open a harmless test PR and confirm GitHub blocks merging
 
 1. Take a verified database backup and rehearse restore into a separate database.
 2. Set production secrets only in the deployment platform; never use CI sandbox credentials in production.
-3. Run `npm run db:audit-migration` against a read-only/staging connection first. The report is dry-run only and exits with code 2 when orphan fee records or unresolved program classifications remain.
+3. Run `npm run db:audit-migration` against a read-only/staging connection first. The report is dry-run only and exits with code 2 when orphan fee records, unresolved classifications, or text-vs-enum program mismatches remain.
 4. Review every program mapping with the Registrar against the approved Siddheswari College programme catalogue. Do not auto-apply suggestions.
 5. Resolve orphan fee records only using an approved, auditable data-repair plan. Then validate the deferred FK constraint as documented in the migration notes.
 6. Complete sandbox payment tests with the merchant's current SSLCommerz v4 contract, then test duplicate callbacks, risk review, cancellation races, partial payment and overpayment.
