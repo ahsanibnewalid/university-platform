@@ -61,6 +61,24 @@ export async function POST(request: Request) {
       if (!invoiceRecord) {
         throw new AuthenticationError("Open invoice not found for your account.", 404);
       }
+      const linkedStudentProfile = await tx.studentProfile.findFirst({
+        where: {
+          userId: invoiceRecord.studentId,
+          user: {
+            memberships: {
+              some: {
+                institutionId: requestedInstitutionId,
+                status: "ACTIVE",
+                role: { in: studentRoles },
+              },
+            },
+          },
+        },
+        select: { userId: true },
+      });
+      if (!linkedStudentProfile) {
+        throw new AuthenticationError("The invoice is not linked to an active student profile.", 403);
+      }
       if (invoiceRecord.currency !== "BDT") {
         throw new AuthenticationError("SSLCommerz checkout currently supports BDT invoices only.", 400);
       }
