@@ -339,14 +339,18 @@ export async function POST(request: Request) {
         }
 
         const employees = await tx.employeeProfile.findMany({
-          where: { institutionId, active: true },
+          where: {
+            institutionId,
+            active: true,
+            OR: [{ hiredAt: null }, { hiredAt: { lte: run.period.endsAt } }],
+          },
           include: {
             salaryStructures: {
               where: {
                 active: true,
                 currency: "BDT",
-                effectiveFrom: { lte: run.period.endsAt },
-                OR: [{ effectiveUntil: null }, { effectiveUntil: { gte: run.period.startsAt } }],
+                effectiveFrom: { lte: run.period.startsAt },
+                OR: [{ effectiveUntil: null }, { effectiveUntil: { gte: run.period.endsAt } }],
               },
               orderBy: { effectiveFrom: "desc" },
             },
@@ -356,9 +360,14 @@ export async function POST(request: Request) {
         if (employees.length === 0) throw new AuthenticationError("No active employees are configured for payroll.", 400);
         const missingSalary = employees.filter((employee) => employee.salaryStructures.length === 0);
         const overlappingSalary = employees.filter((employee) => employee.salaryStructures.length > 1);
-        if (missingSalary.length || overlappingSalary.length) {
+        const midPeriodHires = employees.filter((employee) =>
+          employee.hiredAt !== null &&
+          employee.hiredAt > run.period.startsAt &&
+          employee.hiredAt <= run.period.endsAt,
+        );
+        if (missingSalary.length || overlappingSalary.length || midPeriodHires.length) {
           throw new AuthenticationError(
-            `Payroll blocked: ${missingSalary.length} employee(s) have no effective BDT salary and ${overlappingSalary.length} employee(s) have overlapping salary structures.`,
+            `Payroll blocked: ${missingSalary.length} employee(s) lack a salary structure covering the full period, ${overlappingSalary.length} employee(s) have overlapping salary structures, and ${midPeriodHires.length} employee(s) were hired mid-period and need an approved proration policy.`,
             409,
           );
         }
