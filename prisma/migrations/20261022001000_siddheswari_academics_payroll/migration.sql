@@ -174,7 +174,7 @@ CREATE TABLE "Payslip" (
   CONSTRAINT "Payslip_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "Payslip_currency_check" CHECK ("currency" = 'BDT'),
   CONSTRAINT "Payslip_amounts_check" CHECK ("grossSalary" >= 0 AND "allowances" >= 0 AND "deductions" >= 0 AND "netSalary" >= 0),
-  CONSTRAINT "Payslip_net_check" CHECK ("netSalary" = "grossSalary" + "allowances" - "deductions")
+  CONSTRAINT "Payslip_net_check" CHECK ("netSalary" = "grossSalary" - "deductions")
 );
 
 CREATE TABLE "SSLCommerzLog" (
