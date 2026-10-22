@@ -114,9 +114,35 @@ commit `.env` files, Neon credentials, or provider secrets.
   administration APIs
 - Separate private conversations and official university channels
 - Neon branch configuration with a private `uploads` bucket policy
-- Fee structures and invoices, SSLCommerz hosted checkout, server-side
-  transaction validation, idempotent payment settlement, receipts, and
-  institution-scoped refund request records
+- Fee structures and invoices in BDT, signed SSLCommerz callback verification,
+  server-side transaction validation, idempotent settlement/reconciliation,
+  receipts, and institution-scoped refund records
+- Siddheswari program types, academic sessions, NU registration-aware academic
+  enrollments, class attendance summaries, program-specific grade-point
+  policies, employee profiles, effective-dated salaries, and transactional
+  payroll runs/payslips
+
+## Migration preflight for legacy fee records
+
+The new fee-record foreign key is added as PostgreSQL `NOT VALID` so legacy
+orphaned rows do not block deployment while new writes are immediately checked.
+Before validating the constraint in a production database, take a verified
+backup and run:
+
+```sql
+SELECT fr."id", fr."studentId"
+FROM "FeeRecord" AS fr
+LEFT JOIN "User" AS u ON u."id" = fr."studentId"
+WHERE u."id" IS NULL;
+```
+
+Resolve any returned rows using an approved data-repair plan; do not invent
+student identities. After the query returns no rows, validate the constraint:
+
+```sql
+ALTER TABLE "FeeRecord"
+  VALIDATE CONSTRAINT "FeeRecord_studentId_fkey";
+```
 
 ## Siddheswari academic catalogue seed
 
