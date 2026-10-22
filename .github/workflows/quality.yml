@@ -1,0 +1,28 @@
+name: Repository quality gates
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campushub?schema=public
+      DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/campushub?schema=public
+      BOOTSTRAP_SECRET: ci-only-bootstrap-secret-at-least-24-chars
+      APP_URL: http://localhost:3000
+      SSLCOMMERZ_MODE: sandbox
+      SSLCOMMERZ_STORE_ID: ci-store
+      SSLCOMMERZ_STORE_PASSWORD: ci-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+      - run: npm run test:ci
+      - run: npm run build
