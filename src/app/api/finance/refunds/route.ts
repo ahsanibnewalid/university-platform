@@ -1,4 +1,4 @@
-import { CampusRole, PaymentStatus, Prisma, RefundStatus } from "@prisma/client";
+import { CampusRole, MembershipStatus, PaymentStatus, Prisma, RefundStatus } from "@prisma/client";
 import {
   AuthenticationError,
   authErrorResponse,
@@ -17,27 +17,62 @@ export async function GET() {
   try {
     const session = await requireSession([...financeRoles, ...studentRoles, CampusRole.PARENT]);
     const isFinance = financeRoles.includes(session.membership.role);
-    const studentIds = isFinance
-      ? undefined
-      : studentRoles.includes(session.membership.role)
-        ? [session.userId]
-        : (
-            await prisma.guardianLink.findMany({
-              where: {
-                guardianId: session.userId,
-                verifiedAt: { not: null },
-                student: {
-                  memberships: {
-                    some: {
-                      institutionId: session.membership.institutionId,
-                      status: "ACTIVE",
-                    },
+    let studentIds: string[] | undefined;
+    if (isFinance) {
+      studentIds = undefined;
+    } else if (studentRoles.includes(session.membership.role)) {
+      const profile = await prisma.studentProfile.findFirst({
+        where: {
+          userId: session.userId,
+          user: {
+            memberships: {
+              some: {
+                institutionId: session.membership.institutionId,
+                status: MembershipStatus.ACTIVE,
+                role: { in: studentRoles },
+              },
+            },
+          },
+        },
+        select: { userId: true },
+      });
+      if (!profile) throw new AuthenticationError("An active student profile is required to view refunds.", 403);
+      studentIds = [profile.userId];
+    } else {
+      const links = await prisma.guardianLink.findMany({
+        where: {
+          guardianId: session.userId,
+          verifiedAt: { not: null },
+          student: {
+            memberships: {
+              some: {
+                institutionId: session.membership.institutionId,
+                status: MembershipStatus.ACTIVE,
+              },
+            },
+          },
+        },
+        select: { studentId: true },
+      });
+      const profiles = links.length
+        ? await prisma.studentProfile.findMany({
+            where: {
+              userId: { in: links.map((link) => link.studentId) },
+              user: {
+                memberships: {
+                  some: {
+                    institutionId: session.membership.institutionId,
+                    status: MembershipStatus.ACTIVE,
+                    role: { in: studentRoles },
                   },
                 },
               },
-              select: { studentId: true },
-            })
-          ).map(({ studentId }) => studentId);
+            },
+            select: { userId: true },
+          })
+        : [];
+      studentIds = profiles.map((profile) => profile.userId);
+    }
     const refunds = await prisma.refund.findMany({
       where: {
         payment: {
@@ -98,25 +133,33 @@ export async function POST(request: Request) {
       if (!payment) throw new AuthenticationError("Verified payment not found.", 404);
       if (!financeRoles.includes(session.membership.role)) {
         const isStudent = studentRoles.includes(session.membership.role);
-        const isAuthorized =
-          isStudent && payment.invoice.studentId === session.userId
-            ? true
-            : await tx.guardianLink.findFirst({
+        const studentProfile = await tx.studentProfile.findFirst({
+          where: {
+            userId: payment.invoice.studentId,
+            user: {
+              memberships: {
+                some: {
+                  institutionId: session.membership.institutionId,
+                  status: MembershipStatus.ACTIVE,
+                  role: { in: studentRoles },
+                },
+              },
+            },
+          },
+          select: { userId: true },
+        });
+        const isAuthorized = !studentProfile
+          ? false
+          : isStudent
+            ? studentProfile.userId === session.userId
+            : Boolean(await tx.guardianLink.findFirst({
                 where: {
-                  studentId: payment.invoice.studentId,
+                  studentId: studentProfile.userId,
                   guardianId: session.userId,
                   verifiedAt: { not: null },
-                  student: {
-                    memberships: {
-                      some: {
-                        institutionId: session.membership.institutionId,
-                        status: "ACTIVE",
-                      },
-                    },
-                  },
                 },
                 select: { studentId: true },
-              });
+              }));
         if (!isAuthorized) {
           throw new AuthenticationError(
             "You are not authorized to request a refund for this payment.",
