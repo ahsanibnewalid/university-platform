@@ -3,6 +3,7 @@ import {
   CampusRole,
   EnrollmentStatus,
   MembershipStatus,
+  Prisma,
 } from "@prisma/client";
 import {
   AuthenticationError,
@@ -211,7 +212,11 @@ export async function GET(request: Request) {
         sectionCode: section.sectionCode,
         course: section.course,
       },
-      meetings: section.meetings.map(({ attendance: _attendance, ...meeting }) => meeting),
+      meetings: section.meetings.map((meeting) => ({
+        id: meeting.id,
+        title: meeting.title,
+        startsAt: meeting.startsAt,
+      })),
       summaries,
     });
   } catch (error) {
@@ -251,7 +256,6 @@ export async function POST(request: Request) {
     const sectionScope = await scopedSectionWhere(
       session.membership.role,
       session.userId,
-      session.membership.institutionId,
     );
     const meeting = await prisma.classMeeting.findFirst({
       where: {
