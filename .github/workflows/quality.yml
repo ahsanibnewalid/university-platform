@@ -41,9 +41,20 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Audit dependencies (high severity and above)
-        run: npm audit --audit-level=high
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run test:ci
       - run: npm run build
+
+  dependency-audit:
+    name: dependency-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Audit dependencies (high severity and above)
+        run: npm audit --audit-level=high
