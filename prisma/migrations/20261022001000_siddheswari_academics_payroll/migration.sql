@@ -50,6 +50,7 @@ CREATE TABLE "StudentAcademicEnrollment" (
 CREATE TABLE "GradePoint" (
   "id" TEXT NOT NULL,
   "institutionId" TEXT NOT NULL,
+  "programType" "ProgramType" NOT NULL,
   "letterGrade" TEXT NOT NULL,
   "minimumPercentage" DECIMAL(5,2) NOT NULL,
   "maximumPercentage" DECIMAL(5,2) NOT NULL,
@@ -199,8 +200,8 @@ CREATE UNIQUE INDEX "StudentAcademicEnrollment_studentId_programId_academicSessi
 CREATE INDEX "StudentAcademicEnrollment_institutionId_programId_status_idx" ON "StudentAcademicEnrollment"("institutionId", "programId", "status");
 CREATE INDEX "StudentAcademicEnrollment_studentId_status_idx" ON "StudentAcademicEnrollment"("studentId", "status");
 CREATE INDEX "StudentAcademicEnrollment_academicSessionId_status_idx" ON "StudentAcademicEnrollment"("academicSessionId", "status");
-CREATE UNIQUE INDEX "GradePoint_institutionId_letterGrade_key" ON "GradePoint"("institutionId", "letterGrade");
-CREATE INDEX "GradePoint_institutionId_minimumPercentage_maximumPercentage_idx" ON "GradePoint"("institutionId", "minimumPercentage", "maximumPercentage");
+CREATE UNIQUE INDEX "GradePoint_institutionId_programType_letterGrade_key" ON "GradePoint"("institutionId", "programType", "letterGrade");
+CREATE INDEX "GradePoint_institutionId_programType_minimumPercentage_maximumPercentage_idx" ON "GradePoint"("institutionId", "programType", "minimumPercentage", "maximumPercentage");
 CREATE UNIQUE INDEX "TranscriptResult_studentId_programId_academicYearId_key" ON "TranscriptResult"("studentId", "programId", "academicYearId");
 CREATE INDEX "TranscriptResult_institutionId_publishedAt_idx" ON "TranscriptResult"("institutionId", "publishedAt");
 CREATE INDEX "TranscriptResult_studentId_publishedAt_idx" ON "TranscriptResult"("studentId", "publishedAt");
