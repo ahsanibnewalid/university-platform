@@ -16,6 +16,9 @@ test("fee, attendance, and academic endpoints enforce authenticated student scop
   assert.match(attendance, /studentId/);
   assert.match(enrollment, /requestedStudentId !== profile\.userId/);
   assert.match(enrollment, /guardianLink\.findFirst/);
+  assert.match(registration, /enrollment\.studentId !== session\.userId/);
+  assert.match(registrationService, /ProgramEnrollmentStatus\.ACTIVE/);
+  assert.match(registrationService, /TransactionIsolationLevel\.Serializable/);
 });
 
 test("payment settlement and cancellation use Prisma transactions and conditional state transitions", () => {
