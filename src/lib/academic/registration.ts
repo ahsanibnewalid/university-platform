@@ -3,7 +3,6 @@ import {
   ProgramEnrollmentStatus,
   AcademicSessionStatus,
   AcademicTermStatus,
-  Prisma,
 } from "@prisma/client";
 import { AuthenticationError } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
