@@ -151,7 +151,15 @@ export function assertSameOrigin(request: Request) {
   const requestHost =
     request.headers.get("x-forwarded-host")?.split(",")[0].trim() ??
     request.headers.get("host");
-  if (!requestHost || parsedOrigin.host.toLowerCase() !== requestHost.toLowerCase()) {
+  const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0].trim();
+  const requestProtocol = forwardedProtocol
+    ? `${forwardedProtocol.replace(/:$/, "")}:`
+    : new URL(request.url).protocol;
+  if (
+    !requestHost ||
+    parsedOrigin.host.toLowerCase() !== requestHost.toLowerCase() ||
+    parsedOrigin.protocol !== requestProtocol
+  ) {
     throw new AuthenticationError("Cross-origin request rejected.", 403);
   }
 }
