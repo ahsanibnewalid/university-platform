@@ -3,7 +3,6 @@ import {
   CampusRole,
   EnrollmentStatus,
   MembershipStatus,
-  Prisma,
 } from "@prisma/client";
 import {
   AuthenticationError,
@@ -45,7 +44,6 @@ function isAttendanceStatus(value: unknown): value is AttendanceStatus {
 async function scopedSectionWhere(
   role: CampusRole,
   userId: string,
-  institutionId: string,
 ) {
   if (studentRoles.includes(role)) {
     return {
@@ -77,7 +75,7 @@ async function scopedSectionWhere(
   if (role === CampusRole.DEPARTMENT_CHAIR || role === CampusRole.DEPARTMENT_HEAD) {
     return { course: { department: { chairId: userId } } };
   }
-  if (administrativeRoles.includes(role)) return {};
+  if (role === CampusRole.EXAM_CONTROLLER || administrativeRoles.includes(role)) return {};
   throw new AuthenticationError("Your role cannot access attendance.", 403);
 }
 
@@ -95,7 +93,6 @@ export async function GET(request: Request) {
     const sectionScope = await scopedSectionWhere(
       session.membership.role,
       session.userId,
-      session.membership.institutionId,
     );
     const section = await prisma.courseSection.findFirst({
       where: {
@@ -132,13 +129,7 @@ export async function GET(request: Request) {
     const role = session.membership.role;
     const visibleStudents = studentRoles.includes(role)
       ? section.enrollments.filter((enrollment) => enrollment.studentId === session.userId)
-      : role === CampusRole.PARENT
-        ? section.enrollments.filter((enrollment) =>
-            section.meetings.some((meeting) =>
-              meeting.attendance.some((record) => record.studentId === enrollment.studentId),
-            ),
-          )
-        : section.enrollments;
+      : section.enrollments;
 
     let parentStudentIds: Set<string> | null = null;
     if (role === CampusRole.PARENT) {
