@@ -226,6 +226,25 @@ export async function POST(request: Request) {
       if (!employee) throw new AuthenticationError("Active employee not found.", 404);
 
       const salaryStructure = await prisma.$transaction(async (tx) => {
+        const overlapping = await tx.salaryStructure.findFirst({
+          where: {
+            institutionId,
+            employeeProfileId: employee.id,
+            active: true,
+            effectiveFrom: { lte: effectiveUntil ?? new Date("9999-12-31T23:59:59.999Z") },
+            OR: [
+              { effectiveUntil: null },
+              { effectiveUntil: { gte: effectiveFrom } },
+            ],
+          },
+          select: { id: true, effectiveFrom: true, effectiveUntil: true },
+        });
+        if (overlapping) {
+          throw new AuthenticationError(
+            "Salary structure dates overlap an existing active structure; close the previous structure before adding another.",
+            409,
+          );
+        }
         const created = await tx.salaryStructure.create({
           data: {
             institutionId,
