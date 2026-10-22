@@ -45,11 +45,35 @@ export async function GET() {
             select: { studentId: true },
           })
         : [];
-    const studentIds = isFinance
-      ? undefined
+    const candidateStudentIds = isFinance
+      ? []
       : session.membership.role === CampusRole.PARENT
         ? guardianLinks.map((link) => link.studentId)
         : [session.userId];
+    const verifiedStudentProfiles = isFinance
+      ? []
+      : candidateStudentIds.length
+        ? await prisma.studentProfile.findMany({
+            where: {
+              userId: { in: candidateStudentIds },
+              user: {
+                memberships: {
+                  some: {
+                    institutionId: session.membership.institutionId,
+                    status: "ACTIVE",
+                    role: { in: studentRoles },
+                  },
+                },
+              },
+            },
+            select: { userId: true },
+          })
+        : [];
+    if (!isFinance && session.membership.role !== CampusRole.PARENT &&
+        !verifiedStudentProfiles.some((profile) => profile.userId === session.userId)) {
+      throw new AuthenticationError("An active student profile is required to view invoices.", 403);
+    }
+    const studentIds = isFinance ? undefined : verifiedStudentProfiles.map((profile) => profile.userId);
     const [invoices, payments, feeStructures, students] = await Promise.all([
       prisma.invoice.findMany({
         where: {
@@ -93,11 +117,17 @@ export async function GET() {
           })
         : Promise.resolve([]),
       isFinance
-        ? prisma.membership.findMany({
+        ? prisma.studentProfile.findMany({
             where: {
-              institutionId: session.membership.institutionId,
-              status: "ACTIVE",
-              role: { in: studentRoles },
+              user: {
+                memberships: {
+                  some: {
+                    institutionId: session.membership.institutionId,
+                    status: "ACTIVE",
+                    role: { in: studentRoles },
+                  },
+                },
+              },
             },
             select: { user: { select: { id: true, name: true, email: true } } },
             orderBy: { user: { name: "asc" } },
@@ -109,7 +139,7 @@ export async function GET() {
       invoices,
       payments,
       feeStructures,
-      students: students.map((membership) => membership.user),
+      students: students.map((profile) => profile.user),
     });
   } catch (error) {
     return authErrorResponse(error);
