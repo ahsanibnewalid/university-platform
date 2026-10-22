@@ -5,8 +5,12 @@ on:
   push:
     branches: [main, master]
 
+permissions:
+  contents: read
+
 jobs:
   quality:
+    name: test:ci
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -37,6 +41,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Audit dependencies (high severity and above)
+        run: npm audit --audit-level=high
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run test:ci
