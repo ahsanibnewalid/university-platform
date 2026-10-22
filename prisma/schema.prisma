@@ -760,7 +760,6 @@ model AcademicYear {
   createdAt     DateTime           @default(now())
   institution   Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   terms         AcademicTerm[]
-  academicEnrollments StudentAcademicEnrollment[]
   transcriptResults TranscriptResult[]
 
   @@unique([institutionId, name])
