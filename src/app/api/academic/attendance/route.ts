@@ -147,9 +147,31 @@ export async function GET(request: Request) {
     });
     if (!section) throw new AuthenticationError("Course section not found or access denied.", 404);
 
+    const sectionStudentIds = section.enrollments.map((enrollment) => enrollment.studentId);
+    const sectionProfiles = sectionStudentIds.length
+      ? await prisma.studentProfile.findMany({
+          where: {
+            userId: { in: sectionStudentIds },
+            user: {
+              memberships: {
+                some: {
+                  institutionId: session.membership.institutionId,
+                  status: MembershipStatus.ACTIVE,
+                  role: { in: studentRoles },
+                },
+              },
+            },
+          },
+          select: { userId: true },
+        })
+      : [];
+    const sectionProfileIds = new Set(sectionProfiles.map((profile) => profile.userId));
+    const activeProfileEnrollments = section.enrollments.filter((enrollment) =>
+      sectionProfileIds.has(enrollment.studentId),
+    );
     const visibleStudents = studentRoles.includes(role)
-      ? section.enrollments.filter((enrollment) => enrollment.studentId === session.userId)
-      : section.enrollments;
+      ? activeProfileEnrollments.filter((enrollment) => enrollment.studentId === session.userId)
+      : activeProfileEnrollments;
 
     let parentStudentIds: Set<string> | null = null;
     if (role === CampusRole.PARENT) {
@@ -157,7 +179,7 @@ export async function GET(request: Request) {
         where: {
           guardianId: session.userId,
           verifiedAt: { not: null },
-          studentId: { in: section.enrollments.map((enrollment) => enrollment.studentId) },
+          studentId: { in: activeProfileEnrollments.map((enrollment) => enrollment.studentId) },
         },
         select: { studentId: true },
       });
