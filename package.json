@@ -12,7 +12,8 @@
     "db:deploy": "prisma migrate deploy",
     "type-check": "tsc --noEmit",
     "test": "node --test",
-    "test:ci": "npm run lint && npm run type-check && npm run test"
+    "test:ci": "npm run lint && npm run type-check && npm run test",
+    "db:seed": "prisma db seed"
   },
   "dependencies": {
     "@neon/config": "^1.8.3",
@@ -34,5 +35,8 @@
     "prisma": "6.12.0",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
   }
 }
