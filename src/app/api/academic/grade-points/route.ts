@@ -40,13 +40,17 @@ export async function GET(request: Request) {
   try {
     const session = await requireSession();
     const requestedType = new URL(request.url).searchParams.get("programType");
-    if (requestedType && !isProgramType(requestedType)) {
-      throw new AuthenticationError("Select a valid program type.", 400);
+    let programType: ProgramType | undefined;
+    if (requestedType) {
+      if (!isProgramType(requestedType)) {
+        throw new AuthenticationError("Select a valid program type.", 400);
+      }
+      programType = requestedType;
     }
     const gradePoints = await prisma.gradePoint.findMany({
       where: {
         institutionId: session.membership.institutionId,
-        ...(requestedType ? { programType: requestedType } : {}),
+        ...(programType ? { programType } : {}),
       },
       orderBy: [{ programType: "asc" }, { minimumPercentage: "desc" }],
       take: 250,
