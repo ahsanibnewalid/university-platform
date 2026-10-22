@@ -4,12 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "type-check": "tsc --noEmit",
+    "test": "node --test",
+    "test:ci": "npm run lint && npm run type-check && npm run test"
   },
   "dependencies": {
     "@neon/config": "^1.8.3",
