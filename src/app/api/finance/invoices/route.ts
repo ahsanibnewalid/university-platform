@@ -155,12 +155,18 @@ export async function POST(request: Request) {
     const feeStructureId = requiredText(input.feeStructureId, "Fee structure", 1, 100);
     const dueAt = validDate(input.dueAt, "Due date");
     const [student, feeStructure] = await Promise.all([
-      prisma.membership.findFirst({
+      prisma.studentProfile.findFirst({
         where: {
           userId: studentId,
-          institutionId: session.membership.institutionId,
-          status: "ACTIVE",
-          role: { in: studentRoles },
+          user: {
+            memberships: {
+              some: {
+                institutionId: session.membership.institutionId,
+                status: "ACTIVE",
+                role: { in: studentRoles },
+              },
+            },
+          },
         },
         select: { userId: true },
       }),
