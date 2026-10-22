@@ -143,6 +143,9 @@ export async function GET() {
           nonBdtPayments: await prisma.payment.count({
             where: { institutionId: session.membership.institutionId, currency: { not: "BDT" } },
           }),
+          nonBdtFeeRecords: await prisma.feeRecord.count({
+            where: { institutionId: session.membership.institutionId, currency: { not: "BDT" } },
+          }),
           activeNonBdtFeeStructures: await prisma.feeStructure.count({
             where: {
               institutionId: session.membership.institutionId,
