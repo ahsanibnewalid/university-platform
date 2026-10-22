@@ -14,10 +14,6 @@ type ProgramCategory = (typeof categories)[number];
 
 function classifyProgram(program: ProgramRow): { proposedType: ProgramCategory | null; reason: string } {
   const current = String(program.programType ?? "").trim().toUpperCase();
-  if (categories.includes(current as ProgramCategory)) {
-    return { proposedType: current as ProgramCategory, reason: "existing enum value" };
-  }
-
   const text = [program.name, program.code, program.level].join(" ").normalize("NFKC").toUpperCase();
   const rules: Array<{ type: ProgramCategory; pattern: RegExp; reason: string }> = [
     { type: "PROFESSIONAL_HONOURS", pattern: /PROFESSIONAL|BBA\s*PROF|CSE\s*PROF|LLB\s*HONOURS/i, reason: "professional-program keywords" },
@@ -27,9 +23,18 @@ function classifyProgram(program: ProgramRow): { proposedType: ProgramCategory |
     { type: "HONOURS", pattern: /\bHONOU?RS?\b|\bB\.?A\.?\b|\bB\.?S\.?C\.?\b|\bB\.?S\.?S\.?\b|\bB\.?B\.?A\.?\b/i, reason: "honours / undergraduate keywords" },
   ];
   const match = rules.find((rule) => rule.pattern.test(text));
-  return match
-    ? { proposedType: match.type, reason: match.reason }
-    : { proposedType: null, reason: "unclassified: requires registrar review" };
+  if (match) {
+    return {
+      proposedType: match.type,
+      reason: match.type === current
+        ? `${match.reason}; agrees with stored enum`
+        : `${match.reason}; stored enum is ${current || "missing"} and may be a default`,
+    };
+  }
+  if (categories.includes(current as ProgramCategory)) {
+    return { proposedType: current as ProgramCategory, reason: "text inconclusive; current enum retained provisionally" };
+  }
+  return { proposedType: null, reason: "unclassified: requires registrar review" };
 }
 
 async function main() {
