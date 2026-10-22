@@ -45,6 +45,10 @@ test("SSLCommerz settlement validates BDT and commits settlement in a serializab
   assert.ok(route.includes("prisma.$transaction"));
   assert.ok(route.includes("tx.payment.create"));
   assert.ok(route.includes("tx.sSLCommerzLog.create"));
+  const callback = read("src/lib/sslcommerz-callback.ts");
+  assert.ok(callback.includes("validateSslCommerzIpnHash"));
+  assert.ok(callback.includes("timingSafeEqual"));
+  assert.ok(callback.includes('readSslCommerzCallback(request, true)'));
 });
 
 test("payroll reads employee payslips by authenticated user and calculates within a serializable transaction", () => {
