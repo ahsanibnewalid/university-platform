@@ -111,7 +111,7 @@ export async function GET() {
       }),
       isFinance
         ? prisma.feeStructure.findMany({
-            where: { institutionId: session.membership.institutionId, active: true },
+            where: { institutionId: session.membership.institutionId, active: true, currency: "BDT" },
             orderBy: { name: "asc" },
             take: 100,
           })
@@ -135,7 +135,26 @@ export async function GET() {
           })
         : Promise.resolve([]),
     ]);
+    const currencyIntegrityWarnings = isFinance
+      ? {
+          nonBdtInvoices: await prisma.invoice.count({
+            where: { institutionId: session.membership.institutionId, currency: { not: "BDT" } },
+          }),
+          nonBdtPayments: await prisma.payment.count({
+            where: { institutionId: session.membership.institutionId, currency: { not: "BDT" } },
+          }),
+          activeNonBdtFeeStructures: await prisma.feeStructure.count({
+            where: {
+              institutionId: session.membership.institutionId,
+              active: true,
+              currency: { not: "BDT" },
+            },
+          }),
+        }
+      : null;
     return Response.json({
+      operationalCurrency: "BDT",
+      currencyIntegrityWarnings,
       invoices,
       payments,
       feeStructures,
