@@ -32,6 +32,6 @@ test("payroll locks periods conditionally and rejects overlapping active salary 
   const payroll = read("../src/app/api/hr/payroll/route.ts");
   assert.match(payroll, /action === "lock-period"/);
   assert.match(payroll, /status: PayrollPeriodStatus\.OPEN/);
-  assert.match(payroll, /overlapping active structure/);
+  assert.match(payroll, /overlap an existing active structure/);
   assert.match(payroll, /Prisma\.TransactionIsolationLevel\.Serializable/);
 });
