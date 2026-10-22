@@ -633,6 +633,7 @@ model Department {
   courses       Course[]
   teachers      TeacherProfile[]
   staff         StaffProfile[]
+  employees     EmployeeProfile[]
 
   @@unique([institutionId, code])
   @@index([institutionId, name])
@@ -1462,6 +1463,7 @@ model EmployeeProfile {
   updatedAt       DateTime    @updatedAt
   institution     Institution @relation(fields: [institutionId], references: [id], onDelete: Restrict)
   user            User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   salaryStructures SalaryStructure[]
   adjustments     PayrollAdjustment[]
   payslips        Payslip[]
