@@ -1,4 +1,5 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
+import { verifySslCommerzVerifySign } from "@/lib/sslcommerz-signature";
 import { PaymentStatus, Prisma } from "@prisma/client";
 import { AuthenticationError } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -45,14 +46,7 @@ function validateSslCommerzIpnHash(form: FormData) {
     throw new AuthenticationError("Payment provider callback does not match this merchant.", 403);
   }
 
-  values.store_passwd = createHash("md5").update(storePassword).digest("hex");
-  const serialized = Object.keys(values)
-    .sort()
-    .map((key) => `${key}=${values[key]}`)
-    .join("&");
-  const expected = createHash("md5").update(serialized).digest();
-  const supplied = Buffer.from(verifySign, "hex");
-  if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) {
+  if (!verifySslCommerzVerifySign(verifySign, keys, values, storePassword)) {
     throw new AuthenticationError("Payment provider signature verification failed.", 403);
   }
 }
