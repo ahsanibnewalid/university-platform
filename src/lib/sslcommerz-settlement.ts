@@ -26,6 +26,9 @@ async function requireVerifiedDetails(transactionId: string, validationId: strin
     include: { invoice: true },
   });
   if (!transaction) throw new AuthenticationError("Payment transaction was not found.", 404);
+  if (transaction.currency !== "BDT" || transaction.invoice.currency !== "BDT") {
+    throw new AuthenticationError("Siddheswari College payments must settle in BDT.", 400);
+  }
   const verified = await validateSslCommerzTransaction(validationId);
   if (
     !["VALID", "VALIDATED"].includes(String(verified.status ?? "").toUpperCase()) ||
