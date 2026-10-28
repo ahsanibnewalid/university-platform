@@ -16,16 +16,16 @@ API, while other areas are data-model foundations or early integrations.
 Review the limitations below before using it with real institutional or student
 data.
 
-## Public website and Android host (work in progress)
+## Public website and cross-platform mobile host (work in progress)
 
 - The public `/` route presents a school-and-college website, role entry points,
   and public notices. Only announcements with an empty audience-role restriction
   and a publish date in the past are displayed to unauthenticated visitors.
 - The dedicated `/parent` page serves verified parent accounts and reads
   institution-scoped family data from the existing dashboard API.
-- `android-app/` contains an initial Android Studio project using a native
-  Android WebView host. It requires a deployed HTTPS `PORTAL_URL`; it is **not**
-  a fully native Compose app and does not yet support mobile push notifications.
+- `mobile-app/` contains a React Native / Expo TypeScript project targeting
+  **both Android and iOS**. It currently hosts the secured web portal and needs
+  a deployed HTTPS URL. Dedicated native screens and push notifications are pending.
 - The existing dashboards and APIs remain the foundation for student, teacher,
   parent, finance and administrator workflows. Features described in the
   database schema are not necessarily implemented end-to-end.
