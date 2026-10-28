@@ -37,8 +37,9 @@ export default async function Home() {
           </Link>
           <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-5 text-sm font-semibold text-slate-600">
             <a href="#about" className="hover:text-blue-700">About</a>
-            <a href="#academics" className="hover:text-blue-700">Academics</a>
-            <a href="#notices" className="hover:text-blue-700">Notices</a>
+            <Link href="/academics" className="hover:text-blue-700">Academics</Link>
+            <Link href="/admissions" className="hover:text-blue-700">Admissions</Link>
+            <Link href="/notices" className="hover:text-blue-700">Notices</Link>
             <Link href={session ? "/dashboard" : "/login"} className="rounded-xl bg-[#1758b7] px-5 py-3 text-white hover:bg-blue-800">{session ? "My dashboard" : "Portal sign in"}</Link>
           </nav>
         </div>
@@ -51,7 +52,7 @@ export default async function Home() {
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-blue-100">Keep academic life organized—from classrooms and examination results to parent updates, notices and secure school services.</p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link href={session ? "/dashboard" : "/login"} className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-4 font-bold text-[#15376d]">Open your portal <ArrowRight size={18}/></Link>
-              <a href="#notices" className="rounded-xl border border-white/40 px-6 py-4 font-bold text-white">Latest notices</a>
+              <Link href="/notices" className="rounded-xl border border-white/40 px-6 py-4 font-bold text-white">Latest notices</Link>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4" aria-label="Digital campus features">
