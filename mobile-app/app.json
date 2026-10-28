@@ -15,8 +15,7 @@
       }
     },
     "android": {
-      "package": "com.campushub.mobile",
-      "usesCleartextTraffic": false
+      "package": "com.campushub.mobile"
     },
     "extra": {
       "portalUrl": "https://example.edu"
