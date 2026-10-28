@@ -142,6 +142,26 @@ commit `.env` files, Neon credentials, or provider secrets.
   policies, employee profiles, effective-dated salaries, and transactional
   payroll runs/payslips
 
+## Parent and student leave requests
+
+The `/leave-requests` page and `/api/leave-requests` provide an auditable
+request/review workflow:
+
+- Students may request their own leave; parents may request leave only for
+  verified, active linked students in the current institution.
+- Teachers and faculty can review only students assigned to sections they teach;
+  specified academic administrators can review requests institution-wide.
+- Requests are date-validated and limited to a reasonable range; only pending
+  requests can be reviewed. Requests and reviews are audit-logged, and the
+  requester/student receive a notification after review.
+- **Approval does not automatically alter attendance records.** Attendance
+  corrections must follow the institution's separate approved process.
+
+Apply `prisma/migrations/20261028010000_parent_leave_requests` to a disposable
+development database first, regenerate Prisma Client, and run the project's
+lint/typecheck/test/build checks before production deployment. This new workflow
+has not been end-to-end tested against a configured database in this session.
+
 ## Migration preflight for legacy fee records
 
 The new fee-record foreign key is added as PostgreSQL `NOT VALID` so legacy
