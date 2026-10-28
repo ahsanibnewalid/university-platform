@@ -15,6 +15,14 @@ import { WebView } from "react-native-webview";
 import type { WebViewNavigation } from "react-native-webview";
 import Constants from "expo-constants";
 
+// RN 0.88's strict native props intersect incompatibly with WebView's
+// cross-platform declaration. Preserve runtime WebView behavior while typing
+// the callbacks and reference explicitly until upstream types are aligned.
+const PortalWebView = WebView as unknown as React.ComponentType<{
+  ref?: React.Ref<WebView>;
+  [key: string]: unknown;
+}>;
+
 const configuredUrl = Constants.expoConfig?.extra?.portalUrl;
 const portalUrl = typeof configuredUrl === "string" ? configuredUrl : "";
 const validPortal = (() => {
@@ -56,7 +64,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#102b5a" />
+      <StatusBar barStyle="light-content" />
       <View style={styles.header}>
         <View><Text style={styles.brand}>CampusHub</Text><Text style={styles.subtitle}>School & college portal</Text></View>
         <Pressable accessibilityRole="button" accessibilityLabel="Go to portal home" onPress={() => browser.current?.injectJavaScript("window.location.href = '/'; true;")}>
@@ -73,7 +81,7 @@ export default function App() {
         </View>
       ) : null}
       <View style={[styles.web, failed && styles.hidden]}>
-        <WebView
+        <PortalWebView
           ref={browser}
           source={{ uri: portalUrl }}
           originWhitelist={["https://*"]}
@@ -88,7 +96,7 @@ export default function App() {
           onLoadStart={() => { setBusy(true); setFailed(false); }}
           onLoadEnd={() => setBusy(false)}
           onError={() => { setBusy(false); setFailed(true); }}
-          onShouldStartLoadWithRequest={(request) => {
+          onShouldStartLoadWithRequest={(request: { url: string }) => {
             try {
               const url = new URL(request.url);
               if (url.origin === portalOrigin) return true;
@@ -115,7 +123,7 @@ const styles = StyleSheet.create({
   home: { color: "#fff", fontWeight: "700", padding: 10 },
   web: { flex: 1 },
   hidden: { display: "none" },
-  spinner: { ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
+  spinner: { ...StyleSheet.absoluteFill, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
   message: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
   title: { fontSize: 24, fontWeight: "800", color: "#152c53", textAlign: "center" },
   description: { color: "#66768e", fontSize: 15, lineHeight: 23, textAlign: "center", marginTop: 14 },

@@ -3,6 +3,7 @@
     "name": "CampusHub",
     "slug": "campushub-mobile",
     "scheme": "campushub",
+    "platforms": ["android", "ios"],
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -15,8 +16,7 @@
       }
     },
     "android": {
-      "package": "com.campushub.mobile",
-      "usesCleartextTraffic": false
+      "package": "com.campushub.mobile"
     },
     "extra": {
       "portalUrl": "https://example.edu"
