@@ -63,7 +63,8 @@ export default function LeaveRequestsClient({ role, institutionName }: { role: C
     setBusy(true);
     setError("");
     setMessage("");
-    const formElement = event.currentTarget;\n    const form = new FormData(formElement);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       const response = await fetch("/api/leave-requests", {
         method: "POST",
