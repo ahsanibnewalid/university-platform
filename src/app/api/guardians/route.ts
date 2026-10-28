@@ -22,9 +22,29 @@ export async function GET() {
     const links = await prisma.guardianLink.findMany({
       where: {
         ...(isParent
-          ? { guardianId: session.userId }
+          ? {
+              guardianId: session.userId,
+              student: {
+                memberships: {
+                  some: {
+                    institutionId: session.membership.institutionId,
+                    status: MembershipStatus.ACTIVE,
+                    role: { in: studentRoles },
+                  },
+                },
+              },
+            }
           : {
               studentId: session.userId,
+              guardian: {
+                memberships: {
+                  some: {
+                    institutionId: session.membership.institutionId,
+                    status: MembershipStatus.ACTIVE,
+                    role: CampusRole.PARENT,
+                  },
+                },
+              },
               student: {
                 memberships: {
                   some: { institutionId: session.membership.institutionId, status: MembershipStatus.ACTIVE },
@@ -104,6 +124,15 @@ export async function PATCH(request: Request) {
       where: {
         guardianId,
         studentId: session.userId,
+        guardian: {
+          memberships: {
+            some: {
+              institutionId: session.membership.institutionId,
+              status: MembershipStatus.ACTIVE,
+              role: CampusRole.PARENT,
+            },
+          },
+        },
         student: {
           memberships: {
             some: {
