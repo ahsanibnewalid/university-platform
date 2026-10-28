@@ -136,7 +136,7 @@ export async function PATCH(request: Request) {
     });
     if (!current) throw new AuthenticationError("Pending request not found.", 404);
 
-    if ([CampusRole.TEACHER, CampusRole.FACULTY].includes(session.membership.role)) {
+    if (([CampusRole.TEACHER, CampusRole.FACULTY] as CampusRole[]).includes(session.membership.role)) {
       const assigned = await prisma.enrollment.count({
         where: {
           studentId: current.studentId,
