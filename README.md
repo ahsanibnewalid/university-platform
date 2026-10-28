@@ -16,6 +16,26 @@ API, while other areas are data-model foundations or early integrations.
 Review the limitations below before using it with real institutional or student
 data.
 
+## Public website and Android host (work in progress)
+
+- The public `/` route presents a school-and-college website, role entry points,
+  and public notices. Only announcements with an empty audience-role restriction
+  and a publish date in the past are displayed to unauthenticated visitors.
+- The dedicated `/parent` page serves verified parent accounts and reads
+  institution-scoped family data from the existing dashboard API.
+- `android-app/` contains an initial Android Studio project using a native
+  Android WebView host. It requires a deployed HTTPS `PORTAL_URL`; it is **not**
+  a fully native Compose app and does not yet support mobile push notifications.
+- The existing dashboards and APIs remain the foundation for student, teacher,
+  parent, finance and administrator workflows. Features described in the
+  database schema are not necessarily implemented end-to-end.
+
+Before deploying to a real school, validate the institution's academic rules,
+fee policies, guardian eligibility and legal privacy requirements. Complete
+mobile authentication and device testing, run CI and production-security review,
+and configure monitoring and backups. Do not use live student records during
+unvalidated development.
+
 ## Product areas
 
 - **Academics:** courses, registration, faculties, departments, programs,
