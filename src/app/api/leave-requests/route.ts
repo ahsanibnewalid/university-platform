@@ -1,4 +1,4 @@
-import { CampusRole, LeaveRequestStatus, MembershipStatus } from "@prisma/client";
+import { CampusRole, LeaveRequestStatus, MembershipStatus, Prisma } from "@prisma/client";
 import { AuthenticationError, assertSameOrigin, authErrorResponse, requireSession } from "@/lib/auth";
 import { administrativeRoles, readJsonObject, recordAudit, requiredText, studentRoles } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
@@ -35,7 +35,7 @@ export async function GET() {
     const session = await requireSession();
     const role = session.membership.role;
     const institutionId = session.membership.institutionId;
-    let where: Record<string, unknown> = { institutionId };
+    let where: Prisma.LeaveRequestWhereInput = { institutionId };
     if (role === CampusRole.PARENT) {
       where = {
         institutionId,
