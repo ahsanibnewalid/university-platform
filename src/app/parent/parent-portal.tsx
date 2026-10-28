@@ -86,7 +86,7 @@ export default function ParentPortal({ parentName, institutionName }: { parentNa
             <section className={styles.panel}><div className={styles.panelHead}><h3>Examination results</h3><span>Released results</span></div>{child.results.length ? <ul>{child.results.slice(0, 6).map((item) => <li key={item.id}><div><strong>{item.exam.title}</strong><small>{item.exam.section.course.code}</small></div><span>{item.grade ?? (item.marksObtained ?? "—")}</span></li>)}</ul> : <p className={styles.muted}>No released results yet.</p>}</section>
             <section className={styles.panel}><div className={styles.panelHead}><h3>Current courses</h3><span>Enrolled</span></div>{child.enrollments.length ? <ul>{child.enrollments.slice(0, 6).map((item) => <li key={item.sectionId}><div><strong>{item.section.course.title}</strong><small>{item.section.course.code}</small></div><span>{item.section.term.name}</span></li>)}</ul> : <p className={styles.muted}>No current enrollments.</p>}</section>
           </div>
-          <p className={styles.privacy}>Only students who have approved your guardian connection appear here. You can <Link href="/leave-requests">request student leave</Link>. For payments and receipts, use <Link href="/dashboard?module=Fees">Fees & payments</Link>.</p>
+          <p className={styles.privacy}>Only students who have approved your guardian connection appear here. You can <Link href="/leave-requests">request student leave</Link> or <Link href="/appointments">request a parent–teacher meeting</Link>. For payments and receipts, use <Link href="/dashboard?module=Fees">Fees & payments</Link>.</p>
         </>}
       </div>
     </main>
