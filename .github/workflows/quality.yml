@@ -43,6 +43,8 @@ jobs:
       - run: npm run test:ci
       - run: npm run build
       - name: Smoke-test public routes and anonymous access
+        env:
+          SMOKE_AUTHENTICATED: "1"
         run: |
           npm run start &
           server_pid=$!

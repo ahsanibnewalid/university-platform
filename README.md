@@ -16,7 +16,7 @@ API, while other areas are data-model foundations or early integrations.
 Review the limitations below before using it with real institutional or student
 data.
 
-## Public website and cross-platform mobile host (work in progress)
+## Public website and cross-platform native mobile foundation (work in progress)
 
 - The public `/` route presents a school-and-college website, role entry points,
   and public notices. Only announcements with an empty audience-role restriction
@@ -24,8 +24,13 @@ data.
 - The dedicated `/parent` page serves verified parent accounts and reads
   institution-scoped family data from the existing dashboard API.
 - `mobile-app/` contains a React Native / Expo TypeScript project targeting
-  **both Android and iOS**. It currently hosts the secured web portal and needs
-  a deployed HTTPS URL. Dedicated native screens and push notifications are pending.
+  **both Android and iOS** with native authenticated campus overview, notices,
+  coursework, finance, requests and account screens. Device testing and push
+  notifications are still pending.
+- College exam results now require a grader, independent moderation and a
+  deliberate publish step; previously published results remain readable.
+- Privileged institution leaders can review an access-logged, scoped audit-event
+  dashboard; sensitive finance record reads are audited without logging contents.
 - The existing dashboards and APIs remain the foundation for student, teacher,
   parent, finance and administrator workflows. Features described in the
   database schema are not necessarily implemented end-to-end.
