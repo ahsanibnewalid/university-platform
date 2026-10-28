@@ -37,6 +37,13 @@ enum ProgramEnrollmentStatus {
   WITHDRAWN
 }
 
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum PayrollPeriodStatus {
   OPEN
   LOCKED
@@ -350,6 +357,7 @@ model Institution {
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
   memberships              Membership[]
+  leaveRequests             LeaveRequest[]
   studentAcademicEnrollments StudentAcademicEnrollment[]
   academicSessions         AcademicSession[]
   transcriptResults        TranscriptResult[]
@@ -402,6 +410,9 @@ model User {
   createdAt                    DateTime                @default(now())
   updatedAt                    DateTime                @updatedAt
   memberships                  Membership[]
+  studentLeaveRequests         LeaveRequest[]          @relation("LeaveStudent")
+  requestedLeaveRequests       LeaveRequest[]          @relation("LeaveRequester")
+  reviewedLeaveRequests        LeaveRequest[]          @relation("LeaveReviewer")
   posts                        Post[]                  @relation("PostAuthor")
   savedPosts                   SavedPost[]
   stories                      Story[]                 @relation("StoryAuthor")
@@ -1769,4 +1780,28 @@ model AuditEvent {
 
   @@index([institutionId, createdAt])
   @@index([actorId, createdAt])
+}
+
+model LeaveRequest {
+  id            String             @id @default(cuid())
+  institutionId String
+  studentId     String
+  requesterId   String
+  reviewerId    String?
+  startDate     DateTime           @db.Date
+  endDate       DateTime           @db.Date
+  reason        String
+  status        LeaveRequestStatus @default(PENDING)
+  reviewNote    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  institution   Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  student       User               @relation("LeaveStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  requester     User               @relation("LeaveRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  reviewer      User?              @relation("LeaveReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([institutionId, status, startDate])
+  @@index([studentId, createdAt])
+  @@index([requesterId, createdAt])
 }
