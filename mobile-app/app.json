@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "CampusHub",
+    "slug": "campushub-mobile",
+    "scheme": "campushub",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false
+        }
+      }
+    },
+    "android": {
+      "package": "com.campushub.mobile",
+      "usesCleartextTraffic": false
+    },
+    "extra": {
+      "portalUrl": "https://example.edu"
+    }
+  }
+}
