@@ -3,6 +3,7 @@
     "name": "CampusHub",
     "slug": "campushub-mobile",
     "scheme": "campushub",
+    "platforms": ["android", "ios"],
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
