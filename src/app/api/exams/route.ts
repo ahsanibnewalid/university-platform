@@ -1,4 +1,4 @@
-import { CampusRole, EnrollmentStatus } from "@prisma/client";
+import { CampusRole, EnrollmentStatus, ExamModerationStatus, Prisma } from "@prisma/client";
 import {
   AuthenticationError,
   authErrorResponse,
@@ -95,7 +95,15 @@ export async function GET() {
         },
       },
       include: {
-        section: { include: { course: { select: { code: true, title: true } } } },
+        section: { include: {
+          course: { select: { code: true, title: true } },
+          ...(!student && !parent ? {
+            enrollments: {
+              where: { status: EnrollmentStatus.ENROLLED },
+              select: { studentId: true, student: { select: { name: true } } },
+            },
+          } : {}),
+        } },
         results: student
           ? { where: { studentId: session.userId, releasedAt: { not: null } } }
           : parent
@@ -105,7 +113,7 @@ export async function GET() {
                   releasedAt: { not: null },
                 },
               }
-            : { select: { studentId: true, points: true, releasedAt: true } },
+            : { select: { studentId: true, points: true, releasedAt: true, moderationStatus: true, gradedById: true, moderatedById: true, moderatedAt: true } },
       },
       orderBy: { startsAt: "asc" },
       take: 100,
@@ -158,6 +166,9 @@ export async function PATCH(request: Request) {
     assertSameOrigin(request);
     const session = await requireSession(examManagementRoles);
     const input = await readJsonObject(request);
+    if (input.release === true) {
+      throw new AuthenticationError("Grades must be submitted, independently moderated and published through the moderation workflow.", 400);
+    }
     const examId = requiredText(input.examId, "Exam", 1, 100);
     const studentId = requiredText(input.studentId, "Student", 1, 100);
     const points =
@@ -202,20 +213,22 @@ export async function PATCH(request: Request) {
     if (points > exam.maxPoints.toNumber()) {
       throw new AuthenticationError("Points cannot exceed the exam maximum.", 400);
     }
-    const result = await prisma.examResult.upsert({
-      where: { examId_studentId: { examId, studentId } },
-      create: {
-        examId,
-        studentId,
-        points,
-        releasedAt: input.release === true ? new Date() : null,
-      },
-      update: {
-        points,
-        releasedAt: input.release === true ? new Date() : null,
-      },
-    });
-    await recordAudit(session, "academic.exam.graded", "ExamResult", `${examId}:${studentId}`);
+    const result = await prisma.$transaction(async (tx) => {
+      const existing = await tx.examResult.findUnique({ where: { examId_studentId: { examId, studentId } } });
+      if (existing?.releasedAt || (existing && !([ExamModerationStatus.DRAFT, ExamModerationStatus.RETURNED] as ExamModerationStatus[]).includes(existing.moderationStatus))) {
+        throw new AuthenticationError("Submitted, approved and published marks cannot be edited. Ask the exam controller to return the batch.", 409);
+      }
+      const saved = await tx.examResult.upsert({
+        where: { examId_studentId: { examId, studentId } },
+        create: { examId, studentId, points, gradedById: session.userId },
+        update: { points, gradedById: session.userId, moderationStatus: ExamModerationStatus.DRAFT, moderatedAt: null, moderatedById: null },
+      });
+      await tx.auditEvent.create({ data: {
+        institutionId: session.membership.institutionId, actorId: session.userId,
+        action: "academic.exam.graded", entityType: "ExamResult", entityId: `${examId}:${studentId}`,
+      } });
+      return saved;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return Response.json({ result });
   } catch (error) {
     return authErrorResponse(error);

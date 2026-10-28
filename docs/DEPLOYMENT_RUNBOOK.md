@@ -11,6 +11,9 @@ policies before importing real student data or enabling payments.
 3. On a **disposable PostgreSQL database**, run `npm run db:deploy`; exercise
    admissions, registration, guardian isolation, attendance, exams, fees,
    refunds, staff workflows and role changes using synthetic data.
+   Test the exam-grade migration with both legacy published results and new
+   draft→submitted→independently approved→published results. A grader must not
+   be able to approve their own marks; staff cannot edit released results.
 4. Verify production domain, TLS, environment secrets, mail sender and payment
    gateway settings. Never use the sandbox merchant for live settlements.
 5. Have an independently verified database backup and documented recovery owner.
@@ -75,3 +78,6 @@ database owner and institution.
 - Database restore drill and security/privacy assessment
 - Approved NU/board API contracts, credentials and policies
 - Native mobile release signing, device testing and notification delivery
+- Institution-approved mobile identity and account lifecycle (lost device,
+  remote token revocation, Android/iOS app-store policies)
+- Exam grade correction/appeal and official NU/board release reconciliation

@@ -1,10 +1,13 @@
 {
   "expo": {
-    "name": "CampusHub",
+    "name": "Siddheswari CampusHub",
     "slug": "campushub-mobile",
     "scheme": "campushub",
-    "platforms": ["android", "ios"],
-    "version": "0.1.0",
+    "platforms": [
+      "android",
+      "ios"
+    ],
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
@@ -20,6 +23,9 @@
     },
     "extra": {
       "portalUrl": "https://example.edu"
-    }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
   }
 }

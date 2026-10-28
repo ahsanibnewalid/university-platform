@@ -51,7 +51,8 @@ type ModuleKey =
   | "Fees"
   | "Support"
   | "Specialized"
-  | "Analytics";
+  | "Analytics"
+  | "Audit";
 type ApiData = Record<string, unknown>;
 type UserData = { id: string; name: string; email: string };
 type InstitutionData = { id: string; name: string; slug: string };
@@ -97,6 +98,7 @@ const sections: {
   { key: "Support", label: "Help & support", icon: <CircleHelp size={18} />, description: "Contact your campus support team" },
   { key: "Specialized", label: "Medical & law", icon: <BookOpen size={18} />, description: "Clinical placements and legal-education exercises" },
   { key: "Analytics", label: "Analytics", icon: <Search size={18} />, description: "Institution-wide academic and campus insights" },
+  { key: "Audit", label: "Security audit", icon: <ShieldCheck size={18} />, description: "Privileged review of institution-scoped activity and sensitive actions" },
 ];
 
 const sectionByKey = new Map(sections.map((section) => [section.key, section]));
@@ -111,6 +113,7 @@ const financeRoles: CampusRole[] = [
   ...adminRoles,
   CampusRole.FINANCE_ADMIN,
 ];
+const auditRoles: CampusRole[] = [CampusRole.SUPER_ADMIN, CampusRole.PRINCIPAL, CampusRole.REGISTRAR, CampusRole.UNIVERSITY_ADMIN];
 const departmentRoles: CampusRole[] = [
   CampusRole.DEPARTMENT_HEAD,
   CampusRole.DEPARTMENT_CHAIR,
@@ -315,6 +318,8 @@ async function loadModuleData(module: ModuleKey, role: CampusRole): Promise<ApiD
       return get("/api/specialized");
     case "Analytics":
       return get("/api/reports");
+    case "Audit":
+      return get("/api/admin/audit-events");
   }
 }
 
@@ -372,7 +377,7 @@ export default function PlatformDashboard({
     if (role === CampusRole.CAMPUS_BUSINESS) {
       return sections.filter((section) => ["Home", "Messages", "Social", "Events", "Campus life", "Support"].includes(section.key));
     }
-    return sections;
+    return sections.filter((section) => section.key !== "Audit" || auditRoles.includes(role));
   }, [role]);
 
   const reload = useCallback(async (module: ModuleKey) => {
@@ -595,6 +600,7 @@ export default function PlatformDashboard({
                 ))}
               </div>
               {activeModule === "Parents" && <GuardianActions data={data} role={role} onAction={act} />}
+              {activeModule === "Coursework" && <ExamModerationPanel data={data} role={role} onAction={act} />}
               {activeModule === "Events" && <p className="hub-context-note"><CalendarDays size={14} />Select an event to register your interest. Event registration records attendance only; it does not collect event fees.</p>}
               {activeModule === "Fees" && <p className="hub-context-note"><ShieldCheck size={14} />Payments are confirmed only after SSLCommerz server-side validation. Receipts are available for verified payments; refund completion is recorded by finance after the gateway refund is processed.</p>}
               {activeModule !== "Home" && activeModule !== "Messages" && activeModule !== "Analytics" && (
@@ -776,6 +782,14 @@ function actionList(
     case "Coursework":
       if (teacherRoles.includes(role)) {
         return [
+          { title: "Record draft exam grade", endpoint: "/api/exams", method: "PATCH", fields: [
+            { name: "examId", label: "Exam", type: "select", options: choiceList(data.exams, (item) => String(item.title ?? "Exam")) },
+            { name: "studentId", label: "Enrolled student", type: "select", options: [...new Map((Array.isArray(data.exams) ? data.exams as ApiData[] : []).flatMap((exam) => {
+              const section = exam.section as ApiData | undefined;
+              return (Array.isArray(section?.enrollments) ? section.enrollments as ApiData[] : []).map((enrollment) => ({ value: String(enrollment.studentId), label: String((enrollment.student as ApiData | undefined)?.name ?? enrollment.studentId) }));
+            }).map((item) => [item.value, item])).values()] },
+            { name: "points", label: "Points", type: "number", min: 0 },
+          ] },
           { title: "Create assignment", endpoint: "/api/assignments", fields: [{ name: "sectionId", label: "Course section", type: "select", options: sectionsForCourses }, { name: "title", label: "Assignment title" }, { name: "instructions", label: "Instructions", type: "textarea" }, { name: "dueAt", label: "Due date", type: "datetime-local" }, { name: "maxPoints", label: "Maximum points", type: "number", min: 1 }] },
           { title: "Schedule class meeting", endpoint: "/api/meetings", fields: [{ name: "sectionId", label: "Course section", type: "select", options: sectionsForCourses }, { name: "title", label: "Class title" }, { name: "startsAt", label: "Starts", type: "datetime-local" }, { name: "endsAt", label: "Ends", type: "datetime-local" }, { name: "room", label: "Room", required: false }] },
           { title: "Schedule exam", endpoint: "/api/exams", fields: [{ name: "sectionId", label: "Course section", type: "select", options: sectionsForCourses }, { name: "title", label: "Exam title" }, { name: "startsAt", label: "Exam time", type: "datetime-local" }, { name: "maxPoints", label: "Maximum points", type: "number", min: 1 }] },
@@ -1348,6 +1362,48 @@ function GuardianActions({ data, role, onAction }: { data: ApiData; role: Campus
   return <div className="hub-panel hub-guardian-banner"><ShieldCheck size={18} /><div><b>Guardian access requests</b><span>Approve or deny each family member individually. Academic data remains private until you approve.</span></div>{links.filter((link) => !link.verifiedAt).map((link) => <button className="hub-primary-button" key={String(link.guardianId)} onClick={() => onAction("/api/guardians", "PATCH", { guardianId: link.guardianId, approve: true })}>Approve {String((link.guardian as ApiData | undefined)?.name ?? "guardian")}</button>)}</div>;
 }
 
+function ExamModerationPanel({ data, role, onAction }: {
+  data: ApiData;
+  role: CampusRole;
+  onAction: (endpoint: string, method: string, payload?: ApiData) => void;
+}) {
+  const isReviewer = ([CampusRole.EXAM_CONTROLLER, CampusRole.PRINCIPAL, CampusRole.REGISTRAR, CampusRole.SUPER_ADMIN, CampusRole.UNIVERSITY_ADMIN] as CampusRole[]).includes(role);
+  const isGrader = teacherRoles.includes(role);
+  if (!isReviewer && !isGrader) return null;
+  const exams = Array.isArray(data.exams) ? data.exams as ApiData[] : [];
+  const submit = (examId: string, action: string, note?: string) => {
+    void onAction("/api/exams/moderation", "POST", { examId, action, ...(note ? { note } : {}) });
+  };
+  return <section className="hub-panel">
+    <div className="hub-panel-heading"><div><h2>Exam review and publication</h2><p>Draft marks → independent examination moderation → controlled college publication. Official NU/board release remains external.</p></div></div>
+    {exams.length === 0 ? <p className="hub-inline-empty">No scheduled examinations for your role.</p> : <div className="hub-record-grid">
+      {exams.map((exam) => {
+        const results = Array.isArray(exam.results) ? exam.results as ApiData[] : [];
+        const published = results.length > 0 && results.every((entry) => Boolean(entry.releasedAt));
+        const pending = results.length > 0 && results.every((entry) => entry.moderationStatus === "PENDING");
+        const approved = results.length > 0 && results.every((entry) => entry.moderationStatus === "APPROVED" && !entry.releasedAt);
+        const draft = results.length > 0 && results.every((entry) => entry.moderationStatus === "DRAFT" || entry.moderationStatus === "RETURNED");
+        const section = exam.section as ApiData | undefined;
+        const roster = Array.isArray(section?.enrollments) ? section.enrollments.length : 0;
+        const examId = String(exam.id);
+        return <article className="hub-record" key={examId}>
+          <span className="hub-record-symbol tint-blue"><ClipboardList size={16}/></span>
+          <div className="hub-record-main"><b>{String(exam.title)}</b>
+            <span>{String((section?.course as ApiData | undefined)?.code ?? "Exam")} · {results.length}/{roster || results.length} grades · {published ? "Published" : pending ? "Awaiting moderation" : approved ? "Approved, not published" : draft ? "Draft" : "Awaiting grades"}</span>
+            {results.length > 0 && <small>Student results are released only after an independent reviewer approves the full batch.</small>}
+          </div>
+          <div className="hub-record-buttons">
+            {isGrader && draft && <button className="hub-record-action" onClick={() => submit(examId, "SUBMIT")}>Submit grades</button>}
+            {isReviewer && pending && <button className="hub-record-action" onClick={() => submit(examId, "APPROVE")}>Approve</button>}
+            {isReviewer && pending && <button className="hub-record-action muted-action" onClick={() => { const note = window.prompt("Reason for returning this exam batch (at least 10 characters):"); if (note && note.trim().length >= 10) submit(examId, "RETURN", note.trim()); }}>Return</button>}
+            {isReviewer && approved && <button className="hub-record-action" onClick={() => { if (window.confirm("Publish all approved results to students and notify them?")) submit(examId, "PUBLISH"); }}>Publish</button>}
+          </div>
+        </article>;
+      })}
+    </div>}
+  </section>;
+}
+
 function Analytics({ data }: { data: ApiData }) {
   const roles = Array.isArray(data.membersByRole) ? data.membersByRole as ApiData[] : [];
   const terms = Array.isArray(data.terms) ? data.terms as ApiData[] : [];
@@ -1399,6 +1455,7 @@ function recordTitle(item: ApiData) {
       item.receiptNumber ??
       payment?.transactionId ??
       item.transactionId ??
+      item.action ??
       item.title ??
       item.name ??
       item.subject ??
@@ -1427,7 +1484,7 @@ function recordSubtitle(item: ApiData) {
   const paymentInvoice = payment?.invoice as ApiData | undefined;
   const receipt = item.receipt as ApiData | undefined;
   const paymentReceipt = payment?.receipt as ApiData | undefined;
-  return String(item.description ?? item.reason ?? item.content ?? item.body ?? item.location ?? item.category ?? item.email ?? receipt?.receiptNumber ?? paymentReceipt?.receiptNumber ?? company?.name ?? creator?.name ?? author?.name ?? institution?.name ?? invoice?.invoiceNumber ?? paymentInvoice?.invoiceNumber ?? course?.code ?? event?.title ?? "");
+  return String(item.description ?? item.reason ?? item.content ?? item.body ?? item.location ?? item.category ?? item.email ?? item.entityType ?? receipt?.receiptNumber ?? paymentReceipt?.receiptNumber ?? company?.name ?? creator?.name ?? author?.name ?? institution?.name ?? invoice?.invoiceNumber ?? paymentInvoice?.invoiceNumber ?? course?.code ?? event?.title ?? "");
 }
 
 function recordMeta(item: ApiData) {

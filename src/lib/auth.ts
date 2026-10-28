@@ -1,6 +1,6 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { CampusRole, MembershipStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -68,6 +68,26 @@ export async function createSession(
   });
 }
 
+// Native clients hold this opaque session token in the device secure store.
+// Only its SHA-256 digest is retained by the server, as with browser sessions.
+export async function createMobileSession(
+  userId: string,
+  membershipId: string,
+  userAgent: string | null,
+) {
+  const token = randomBytes(32).toString("base64url");
+  await prisma.authSession.create({
+    data: {
+      userId,
+      membershipId,
+      tokenHash: createHash("sha256").update(token).digest("hex"),
+      expiresAt: new Date(Date.now() + sessionDurationSeconds * 1000),
+      userAgent: userAgent?.slice(0, 500) ?? null,
+    },
+  });
+  return token;
+}
+
 export async function clearSession() {
   const cookieStore = await cookies();
   const token = cookieStore.get(cookieName)?.value;
@@ -82,8 +102,13 @@ export async function clearSession() {
 }
 
 export async function getCurrentSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(cookieName)?.value;
+  const requestHeaders = await headers();
+  const authorization = requestHeaders.get("authorization");
+  const bearer = authorization?.match(/^Bearer ([A-Za-z0-9_-]{40,128})$/);
+  // Never fall back to a browser cookie when an invalid Authorization value
+  // was explicitly supplied: doing so could silently switch identities.
+  if (authorization && !bearer) return null;
+  const token = bearer?.[1] ?? (await cookies()).get(cookieName)?.value;
   if (!token) return null;
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const session = await prisma.authSession.findFirst({

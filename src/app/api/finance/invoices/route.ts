@@ -10,6 +10,7 @@ import {
   financeRoles,
   isPrismaUniqueError,
   readJsonObject,
+  recordAudit,
   requiredText,
   studentRoles,
   validDate,
@@ -155,6 +156,8 @@ export async function GET() {
           }),
         }
       : null;
+    // Audit access to finance history without copying invoice contents into logs.
+    await recordAudit(session, "security.finance.records.read", "FinanceRecords");
     return Response.json({
       operationalCurrency: "BDT",
       currencyIntegrityWarnings,

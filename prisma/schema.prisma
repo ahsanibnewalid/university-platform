@@ -279,6 +279,13 @@ enum AttendanceStatus {
   EXCUSED
 }
 
+enum ExamModerationStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  RETURNED
+}
+
 enum ConversationKind {
   DIRECT
   GROUP
@@ -992,11 +999,16 @@ model ExamResult {
   studentId  String
   points     Decimal   @db.Decimal(7, 2)
   releasedAt DateTime?
+  moderationStatus ExamModerationStatus @default(DRAFT)
+  gradedById String?
+  moderatedById String?
+  moderatedAt DateTime?
   exam       Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
   student    User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@id([examId, studentId])
   @@index([studentId])
+  @@index([examId, moderationStatus, releasedAt])
 }
 
 model GuardianLink {
