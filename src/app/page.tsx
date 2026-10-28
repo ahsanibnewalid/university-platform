@@ -22,18 +22,18 @@ export default async function Home() {
         take: 5,
       }).catch(() => [])
     : [];
-  const name = institution?.name || "CampusHub";
+  const name = institution?.name || "Siddheswari College";
 
   return (
     <main className="min-h-screen bg-[#f7f9fc] text-[#182b4a]">
       <div className="bg-[#112a56] px-5 py-2 text-center text-xs font-semibold tracking-wide text-white">
-        A connected digital campus for students, families, teachers and administration
+        সিদ্ধেশ্বরী কলেজ · National University of Bangladesh affiliated college
       </div>
       <header className="border-b border-slate-200 bg-white/95">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5">
           <Link href="/" className="flex items-center gap-3 text-xl font-extrabold tracking-tight">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#1758b7] text-white"><GraduationCap size={24} /></span>
-            <span>{name}<span className="block text-[11px] font-bold uppercase tracking-[.18em] text-[#527298]">School & college portal</span></span>
+            <span>{name}<span className="block text-[11px] font-bold uppercase tracking-[.18em] text-[#527298]">Siddheswari College · Dhaka</span></span>
           </Link>
           <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-5 text-sm font-semibold text-slate-600">
             <a href="#about" className="hover:text-blue-700">About</a>
@@ -47,9 +47,9 @@ export default async function Home() {
       <section className="overflow-hidden bg-gradient-to-br from-[#102c60] via-[#164d98] to-[#238ab5] text-white">
         <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 md:grid-cols-[1.2fr_.8fr] md:items-center md:py-28">
           <div>
-            <span className="inline-flex rounded-full border border-white/30 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[.15em]">Learning • Community • Progress</span>
-            <h1 className="mt-7 max-w-3xl text-4xl font-black leading-tight tracking-tight md:text-6xl">A brighter future starts with a connected campus.</h1>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-blue-100">Keep academic life organized—from classrooms and examination results to parent updates, notices and secure school services.</p>
+            <span className="inline-flex rounded-full border border-white/30 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[.15em]">Siddheswari College · Dhaka</span>
+            <h1 className="mt-7 max-w-3xl text-4xl font-black leading-tight tracking-tight md:text-6xl">Your college, connected to every academic journey.</h1>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-blue-100">A digital home for Siddheswari College students, parents, teachers and administration—supporting HSC and National University-affiliated higher education workflows.</p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link href={session ? "/dashboard" : "/login"} className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-4 font-bold text-[#15376d]">Open your portal <ArrowRight size={18}/></Link>
               <Link href="/notices" className="rounded-xl border border-white/40 px-6 py-4 font-bold text-white">Latest notices</Link>
@@ -66,7 +66,7 @@ export default async function Home() {
         </div>
       </section>
       <section id="about" className="mx-auto max-w-7xl px-5 py-18 md:py-24">
-        <div className="max-w-2xl"><p className="text-xs font-extrabold uppercase tracking-[.2em] text-blue-700">One school community</p><h2 className="mt-3 text-3xl font-extrabold md:text-4xl">Everything in one connected place.</h2><p className="mt-5 text-base leading-8 text-slate-600">Designed for everyday academic communication and secure access to school records. Each person signs in with an assigned role, while parents see only verified, linked children.</p></div>
+        <div className="max-w-2xl"><p className="text-xs font-extrabold uppercase tracking-[.2em] text-blue-700">One school community</p><h2 className="mt-3 text-3xl font-extrabold md:text-4xl">Everything in one connected place.</h2><p className="mt-5 text-base leading-8 text-slate-600">Built around Siddheswari College, Dhaka, with a distinct HSC academic stream and National University-affiliated degree pathways. Each user signs in with an assigned role; guardians see only verified, linked students.</p></div>
         <div id="academics" className="mt-10 grid gap-5 md:grid-cols-3">
           {[
             { icon: <BookOpen size={24}/>, heading: "Academic management", desc: "Course schedules, homework, examination records and attendance in one workflow." },
@@ -81,7 +81,7 @@ export default async function Home() {
           {notices.length ? <ul className="grid gap-4">{notices.map((notice) => <li key={notice.id} className="rounded-xl border border-slate-200 p-6"><div className="flex flex-wrap items-start justify-between gap-3"><h3 className="text-lg font-bold">{notice.title}</h3><time className="text-xs text-slate-500">{notice.publishedAt?.toLocaleDateString("en-BD")}</time></div><p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-600">{notice.body.length > 500 ? notice.body.slice(0, 500) + "…" : notice.body}</p></li>)}</ul> : <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-slate-600">No public notices are published yet. Official announcements will appear here when an administrator publishes them for everyone.</div>}
         </div>
       </section>
-      <footer className="bg-[#10254b] px-5 py-10 text-white"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4"><div><strong>{name}</strong><p className="mt-2 text-xs text-blue-200">Powered by CampusHub · Secure academic access</p></div><Link href={session ? "/dashboard" : "/login"} className="text-sm font-semibold underline underline-offset-4">Portal access</Link></div></footer>
+      <footer className="bg-[#10254b] px-5 py-10 text-white"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4"><div><strong>{name}</strong><p className="mt-2 text-xs text-blue-200">Affiliated with National University, Bangladesh (higher-education programs) · Powered by CampusHub</p></div><Link href={session ? "/dashboard" : "/login"} className="text-sm font-semibold underline underline-offset-4">Portal access</Link></div></footer>
     </main>
   );
 }
