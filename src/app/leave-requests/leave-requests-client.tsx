@@ -63,7 +63,7 @@ export default function LeaveRequestsClient({ role, institutionName }: { role: C
     setBusy(true);
     setError("");
     setMessage("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;\n    const form = new FormData(formElement);
     try {
       const response = await fetch("/api/leave-requests", {
         method: "POST",
@@ -78,7 +78,7 @@ export default function LeaveRequestsClient({ role, institutionName }: { role: C
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to submit leave request.");
       setMessage("Leave request submitted for review.");
-      event.currentTarget.reset();
+      formElement.reset();
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Request failed.");
