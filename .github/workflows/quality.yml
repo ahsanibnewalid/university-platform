@@ -64,3 +64,5 @@ jobs:
         working-directory: mobile-app
       - run: npm run doctor
         working-directory: mobile-app
+      - run: npx expo export --platform all
+        working-directory: mobile-app
