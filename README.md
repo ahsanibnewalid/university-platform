@@ -162,6 +162,20 @@ development database first, regenerate Prisma Client, and run the project's
 lint/typecheck/test/build checks before production deployment. This new workflow
 has not been end-to-end tested against a configured database in this session.
 
+## Parent–teacher appointment requests
+
+The `/appointments` page and `/api/appointments` provide a request/confirmation
+workflow. Verified parents can request appointments only with active teachers
+assigned to their child. Teachers may confirm or decline requests, and parents
+may cancel their own pending requests. Changes are audit-logged and notify the
+other party. The requested time is **not confirmed** until accepted.
+
+Apply `prisma/migrations/20261028011000_parent_teacher_appointments` after
+the leave-request migration in a disposable development database. It has not
+yet been tested with real institutional schedules, and does not provide room
+booking, reminders, calendar invitations or conflict resolution. Obtain
+institution-approved scheduling rules before a production launch.
+
 ## Migration preflight for legacy fee records
 
 The new fee-record foreign key is added as PostgreSQL `NOT VALID` so legacy
