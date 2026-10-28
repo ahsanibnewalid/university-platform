@@ -3,7 +3,7 @@ import { AuthenticationError, assertSameOrigin, authErrorResponse, requireSessio
 import { administrativeRoles, readJsonObject, recordAudit, requiredText, studentRoles } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
-const teacherRoles = [CampusRole.TEACHER, CampusRole.FACULTY];
+const teacherRoles: CampusRole[] = [CampusRole.TEACHER, CampusRole.FACULTY];
 
 async function verifiedChildren(guardianId: string, institutionId: string) {
   return prisma.guardianLink.findMany({
@@ -144,7 +144,7 @@ export async function PATCH(request: Request) {
     const id = requiredText(input.id, "Appointment", 1, 100);
     const status = input.status;
     const isParent = session.membership.role === CampusRole.PARENT;
-    if (isParent ? status !== AppointmentStatus.CANCELLED : ![AppointmentStatus.CONFIRMED, AppointmentStatus.DECLINED].includes(status as AppointmentStatus)) {
+    if (isParent ? status !== AppointmentStatus.CANCELLED : !([AppointmentStatus.CONFIRMED, AppointmentStatus.DECLINED] as AppointmentStatus[]).includes(status as AppointmentStatus)) {
       throw new AuthenticationError("Invalid appointment action.", 400);
     }
     const appointment = await prisma.parentTeacherAppointment.findFirst({
