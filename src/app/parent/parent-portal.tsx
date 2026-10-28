@@ -8,7 +8,7 @@ type Course = { sectionId: string; section: { course: { code: string; title: str
 type Assignment = { id: string; title: string; dueAt: string; section: { course: { code: string; title: string } } };
 type Attendance = { status: string; meeting: { startsAt: string; section: { course: { code: string } } } };
 type Result = { id: string; marksObtained?: number | null; grade?: string | null; exam: { title: string; section: { course: { code: string } } } };
-type Fee = { id: string; amountDue: string | number; amountPaid?: string | number; dueAt?: string | null; status?: string };
+type Fee = { id: string; amountDue: string | number; dueAt?: string | null };
 type Child = {
   id: string;
   name: string;
@@ -55,7 +55,7 @@ export default function ParentPortal({ parentName, institutionName }: { parentNa
   }, [reloading]);
 
   const child = children.find((entry) => entry.id === selectedId);
-  const outstanding = child?.fees.reduce((total, fee) => total + Math.max(0, Number(fee.amountDue) - Number(fee.amountPaid ?? 0)), 0) ?? 0;
+  const recordedCharges = child?.fees.reduce((total, fee) => total + Number(fee.amountDue), 0) ?? 0;
 
   return (
     <main className={styles.page}>
@@ -78,7 +78,7 @@ export default function ParentPortal({ parentName, institutionName }: { parentNa
             <article><span>Attendance rate</span><strong>{child.attendanceRate === null ? "—" : `${child.attendanceRate}%`}</strong><small>Recorded class meetings</small></article>
             <article><span>Active courses</span><strong>{child.enrollments.length}</strong><small>Current enrollments</small></article>
             <article><span>Upcoming homework</span><strong>{child.upcomingAssignments.length}</strong><small>Assignments due</small></article>
-            <article><span>Recorded fee balance</span><strong>{amount(outstanding)}</strong><small>See invoices for authoritative dues</small></article>
+            <article><span>Recorded fee charges</span><strong>{amount(recordedCharges)}</strong><small>Not an unpaid balance; see invoices for dues</small></article>
           </div>
           <div className={styles.grid}>
             <section className={styles.panel}><div className={styles.panelHead}><h3>Upcoming homework</h3><span>Due dates</span></div>{child.upcomingAssignments.length ? <ul>{child.upcomingAssignments.slice(0, 6).map((item) => <li key={item.id}><div><strong>{item.title}</strong><small>{item.section.course.code}</small></div><time>{date(item.dueAt)}</time></li>)}</ul> : <p className={styles.muted}>No upcoming assignments.</p>}</section>
