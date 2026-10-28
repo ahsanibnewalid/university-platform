@@ -25,6 +25,7 @@ await request("/", 200);
 await request("/login", 200);
 await request("/academics", 200);
 await request("/notices", 200);
+await request("/api/health", 200);
 await request("/api/dashboard", 401);
 await request("/api/announcements", 401);
 await request("/api/guardians", 401);
