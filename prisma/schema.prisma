@@ -37,6 +37,13 @@ enum ProgramEnrollmentStatus {
   WITHDRAWN
 }
 
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+  CANCELLED
+}
+
 enum LeaveRequestStatus {
   PENDING
   APPROVED
@@ -358,6 +365,7 @@ model Institution {
   updatedAt                DateTime                 @updatedAt
   memberships              Membership[]
   leaveRequests             LeaveRequest[]
+  parentTeacherAppointments ParentTeacherAppointment[]
   studentAcademicEnrollments StudentAcademicEnrollment[]
   academicSessions         AcademicSession[]
   transcriptResults        TranscriptResult[]
@@ -413,6 +421,9 @@ model User {
   studentLeaveRequests         LeaveRequest[]          @relation("LeaveStudent")
   requestedLeaveRequests       LeaveRequest[]          @relation("LeaveRequester")
   reviewedLeaveRequests        LeaveRequest[]          @relation("LeaveReviewer")
+  parentAppointments           ParentTeacherAppointment[] @relation("AppointmentParent")
+  studentAppointments          ParentTeacherAppointment[] @relation("AppointmentStudent")
+  teacherAppointments          ParentTeacherAppointment[] @relation("AppointmentTeacher")
   posts                        Post[]                  @relation("PostAuthor")
   savedPosts                   SavedPost[]
   stories                      Story[]                 @relation("StoryAuthor")
@@ -1804,4 +1815,28 @@ model LeaveRequest {
   @@index([institutionId, status, startDate])
   @@index([studentId, createdAt])
   @@index([requesterId, createdAt])
+}
+
+model ParentTeacherAppointment {
+  id            String            @id @default(cuid())
+  institutionId String
+  parentId      String
+  studentId     String
+  teacherId     String
+  requestedAt   DateTime
+  note          String
+  status        AppointmentStatus @default(PENDING)
+  response      String?
+  reviewedAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  institution   Institution       @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  parent        User              @relation("AppointmentParent", fields: [parentId], references: [id], onDelete: Cascade)
+  student       User              @relation("AppointmentStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  teacher       User              @relation("AppointmentTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId, status, requestedAt])
+  @@index([parentId, createdAt])
+  @@index([teacherId, status, requestedAt])
+  @@index([studentId, createdAt])
 }
