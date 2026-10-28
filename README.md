@@ -16,6 +16,26 @@ API, while other areas are data-model foundations or early integrations.
 Review the limitations below before using it with real institutional or student
 data.
 
+## Public website and cross-platform mobile host (work in progress)
+
+- The public `/` route presents a school-and-college website, role entry points,
+  and public notices. Only announcements with an empty audience-role restriction
+  and a publish date in the past are displayed to unauthenticated visitors.
+- The dedicated `/parent` page serves verified parent accounts and reads
+  institution-scoped family data from the existing dashboard API.
+- `mobile-app/` contains a React Native / Expo TypeScript project targeting
+  **both Android and iOS**. It currently hosts the secured web portal and needs
+  a deployed HTTPS URL. Dedicated native screens and push notifications are pending.
+- The existing dashboards and APIs remain the foundation for student, teacher,
+  parent, finance and administrator workflows. Features described in the
+  database schema are not necessarily implemented end-to-end.
+
+Before deploying to a real school, validate the institution's academic rules,
+fee policies, guardian eligibility and legal privacy requirements. Complete
+mobile authentication and device testing, run CI and production-security review,
+and configure monitoring and backups. Do not use live student records during
+unvalidated development.
+
 ## Product areas
 
 - **Academics:** courses, registration, faculties, departments, programs,
