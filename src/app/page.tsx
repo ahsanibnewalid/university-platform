@@ -38,7 +38,7 @@ export default async function Home() {
           <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-5 text-sm font-semibold text-slate-600">
             <a href="#about" className="hover:text-blue-700">About</a>
             <Link href="/academics" className="hover:text-blue-700">Academics</Link>
-            <Link href="/admissions" className="hover:text-blue-700">Admissions</Link>
+            <Link href="/admissions" className="hover:text-blue-700">Admissions</Link>\n            <Link href="/national-university" className="hover:text-blue-700">NU affiliation</Link>
             <Link href="/notices" className="hover:text-blue-700">Notices</Link>
             <Link href={session ? "/dashboard" : "/login"} className="rounded-xl bg-[#1758b7] px-5 py-3 text-white hover:bg-blue-800">{session ? "My dashboard" : "Portal sign in"}</Link>
           </nav>
