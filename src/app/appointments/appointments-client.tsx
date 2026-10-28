@@ -45,7 +45,7 @@ export default function AppointmentsClient({ role, institutionName }: { role: Ca
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
   const eligible = teachers.filter((item) => item.studentId === studentId);
   const selectedTeacher = eligible.some((item) => item.teacherId === teacherId) ? teacherId : eligible[0]?.teacherId || "";
 
