@@ -22,7 +22,7 @@ export default async function Home() {
         take: 5,
       }).catch(() => [])
     : [];
-  const name = institution?.name || "Siddheswari College";
+  const name = "Siddheswari College";
 
   return (
     <main className="min-h-screen bg-[#f7f9fc] text-[#182b4a]">
@@ -38,7 +38,8 @@ export default async function Home() {
           <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-5 text-sm font-semibold text-slate-600">
             <a href="#about" className="hover:text-blue-700">About</a>
             <Link href="/academics" className="hover:text-blue-700">Academics</Link>
-            <Link href="/admissions" className="hover:text-blue-700">Admissions</Link>\n            <Link href="/national-university" className="hover:text-blue-700">NU affiliation</Link>
+            <Link href="/admissions" className="hover:text-blue-700">Admissions</Link>
+            <Link href="/national-university" className="hover:text-blue-700">NU affiliation</Link>
             <Link href="/notices" className="hover:text-blue-700">Notices</Link>
             <Link href={session ? "/dashboard" : "/login"} className="rounded-xl bg-[#1758b7] px-5 py-3 text-white hover:bg-blue-800">{session ? "My dashboard" : "Portal sign in"}</Link>
           </nav>
@@ -48,7 +49,7 @@ export default async function Home() {
         <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 md:grid-cols-[1.2fr_.8fr] md:items-center md:py-28">
           <div>
             <span className="inline-flex rounded-full border border-white/30 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[.15em]">Siddheswari College · Dhaka</span>
-            <h1 className="mt-7 max-w-3xl text-4xl font-black leading-tight tracking-tight md:text-6xl">Your college, connected to every academic journey.</h1>
+            <h1 className="mt-7 max-w-3xl text-4xl font-black leading-tight tracking-tight md:text-5xl">Siddheswari College <span className="mt-3 block text-sky-200">Learn. Connect. Progress.</span></h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-blue-100">A digital home for Siddheswari College students, parents, teachers and administration—supporting HSC and National University-affiliated higher education workflows.</p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link href={session ? "/dashboard" : "/login"} className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-4 font-bold text-[#15376d]">Open your portal <ArrowRight size={18}/></Link>
@@ -66,7 +67,7 @@ export default async function Home() {
         </div>
       </section>
       <section id="about" className="mx-auto max-w-7xl px-5 py-18 md:py-24">
-        <div className="max-w-2xl"><p className="text-xs font-extrabold uppercase tracking-[.2em] text-blue-700">One school community</p><h2 className="mt-3 text-3xl font-extrabold md:text-4xl">Everything in one connected place.</h2><p className="mt-5 text-base leading-8 text-slate-600">Built around Siddheswari College, Dhaka, with a distinct HSC academic stream and National University-affiliated degree pathways. Each user signs in with an assigned role; guardians see only verified, linked students.</p></div>
+        <div className="max-w-2xl"><p className="text-xs font-extrabold uppercase tracking-[.2em] text-blue-700">One college community</p><h2 className="mt-3 text-3xl font-extrabold md:text-4xl">Everything in one connected place.</h2><p className="mt-5 text-base leading-8 text-slate-600">Built for Siddheswari College, Dhaka, with a distinct HSC academic stream and National University-affiliated degree pathways. Each user signs in with an assigned role; guardians see only verified, linked students.</p></div>
         <div id="academics" className="mt-10 grid gap-5 md:grid-cols-3">
           {[
             { icon: <BookOpen size={24}/>, heading: "Academic management", desc: "Course schedules, homework, examination records and attendance in one workflow." },

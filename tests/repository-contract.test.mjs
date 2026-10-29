@@ -7,6 +7,22 @@ import { dirname, resolve } from "node:path";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 
+test("single-college provisioning is server-only and fixes Siddheswari College identity", () => {
+  const setupApi = read("src/app/api/auth/bootstrap/route.ts");
+  const login = read("src/app/login/page.tsx");
+  const bootstrap = read("prisma/bootstrap-college.mjs");
+  assert.ok(setupApi.includes("status: 404"));
+  assert.ok(!setupApi.includes("prisma.institution.create"));
+  assert.ok(!login.includes("Set up a new institution"));
+  assert.ok(!login.includes("/api/auth/bootstrap"));
+  assert.ok(bootstrap.includes('COLLEGE_NAME = "Siddheswari College"'));
+  assert.ok(bootstrap.includes('COLLEGE_SLUG = "siddheswari-college"'));
+  assert.ok(bootstrap.includes('tx.institution.count()'));
+  assert.ok(bootstrap.includes('role: "SUPER_ADMIN"'));
+  const singleCollegeMigration = read("prisma/migrations/20261029000000_enforce_single_college/migration.sql");
+  assert.ok(singleCollegeMigration.includes('CHECK ("singletonKey" = 1)'));
+});
+
 test("schema contains Siddheswari academic, payment-audit, and payroll domain models", () => {
   const schema = read("prisma/schema.prisma");
   for (const model of [

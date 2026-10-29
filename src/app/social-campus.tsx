@@ -320,7 +320,7 @@ export default function SocialCampus() {
           <div className="institution-card">
             <div className="institution-seal"><GraduationCap size={19} /></div>
             <div>
-              <strong>Northstar University</strong>
+              <strong>Siddheswari College</strong>
               <span>Official campus</span>
             </div>
             <ChevronDown size={15} />
@@ -448,7 +448,7 @@ export default function SocialCampus() {
                     <div className="art-shape art-arch" />
                     <div className="art-shape art-sun" />
                     <span className="art-caption">make room<br />for wonder</span>
-                    <span className="art-label">NORTHSTAR<br />STUDENT SHOWCASE</span>
+                    <span className="art-label">SIDDHESWARI<br />STUDENT SHOWCASE</span>
                     <span className="art-stamp">2025<br />✳</span>
                   </div>
                 )}
@@ -581,7 +581,7 @@ export default function SocialCampus() {
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setComposerOpen(false); }}>
           <section className="composer-modal" role="dialog" aria-modal="true" aria-labelledby="composer-title">
             <div className="modal-heading"><h2 id="composer-title">Share with your campus</h2><button className="icon-button" aria-label="Close composer" onClick={() => setComposerOpen(false)}><X size={19} /></button></div>
-            <div className="modal-author"><span className="avatar avatar-blue">AM</span><div><strong>Alex Morgan</strong><small>{role} · Northstar University</small></div></div>
+            <div className="modal-author"><span className="avatar avatar-blue">AM</span><div><strong>Alex Morgan</strong><small>{role} · Siddheswari College</small></div></div>
             <form onSubmit={createPost}>
               <textarea name="content" placeholder="What’s happening on campus?" autoFocus maxLength={1200} required />
               <label className="community-select-label" htmlFor="community-select">Share with</label>

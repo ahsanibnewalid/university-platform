@@ -10,6 +10,10 @@ department leadership, university offices, specialist campus staff, recruiters,
 campus businesses, and specialized medical and law programs. People can hold
 multiple roles at the university, with private records scoped by role.
 
+This repository is configured for **Siddheswari College only**, with a single
+institution and centrally managed user invitations. Visitors cannot register
+another institution or create an administrator from the login page.
+
 This repository is an actively developed foundation, **not a finished or
 production-ready university platform**. Several workflows have a usable UI and
 API, while other areas are data-model foundations or early integrations.
@@ -78,8 +82,7 @@ unvalidated development.
    ```
 
 2. Copy `.env.example` to `.env.local` if you do not already have a local
-   environment file. Set the database URL, and configure a private
-   `BOOTSTRAP_SECRET` of at least 24 characters. For Neon, link or check out a
+   environment file. Set the database URL. For Neon, link or check out a
    development branch with the Neon CLI to populate its database URLs.
 3. Generate the Prisma client and apply migrations to your development database:
 
@@ -91,16 +94,44 @@ unvalidated development.
    Neon migrations require a **direct, unpooled** database URL. This workspace's
    Neon-linked `.env.local` contains both pooled `DATABASE_URL` and direct
    `DATABASE_URL_UNPOOLED`; do not migrate against production while developing.
-4. Start the development server:
+4. For a **new empty database only**, provision the fixed Siddheswari College
+   institution and its first super-admin **from the trusted server shell**.
+   You must supply your own private administrator credentials. For Bash:
+
+   ```bash
+   export CAMPUS_ADMIN_NAME="Your approved administrator's name"
+   export CAMPUS_ADMIN_EMAIL="your-approved-admin@example.com"
+   read -rsp 'Initial administrator password: ' CAMPUS_ADMIN_PASSWORD
+   export CAMPUS_ADMIN_PASSWORD
+   npm run campus:bootstrap
+   unset CAMPUS_ADMIN_PASSWORD
+   ```
+
+   The command creates exactly one institution named `Siddheswari College`
+   with slug `siddheswari-college`. It refuses to run if any institution already
+   exists; it never resets or replaces existing accounts. **No public setup
+   endpoint or default administrator password exists.**
+
+5. Start the development server:
 
    ```bash
    npm run dev
    ```
 
-5. Visit [http://localhost:3000](http://localhost:3000). If the database has no
-   institutions, the sign-in page offers initial setup. Create the first
-   institution and super-admin using the `BOOTSTRAP_SECRET`. The secret is
-   checked server-side and is never stored in the database.
+6. Visit [http://localhost:3000](http://localhost:3000) and sign in using the
+   authorized administrator credentials established on the server. Additional
+   college accounts use the existing invitation workflow.
+
+If an **existing** deployment was previously initialized with generic or demo
+institution branding, take an approved database backup first, then a trusted
+operator can run:
+
+```bash
+CAMPUS_CONFIRM_REBRAND="Siddheswari College" npm run campus:rebrand
+```
+
+This only corrects the single institution's name and slug; it preserves users,
+membership relationships and academic records. It does not reset passwords.
 
 For production, configure environment variables with your hosting provider, run
 `npm run db:deploy` against the intended database, and deploy the Next.js
@@ -112,7 +143,9 @@ application. Do not use the development migration command in production.
 | --- | --- | --- |
 | `DATABASE_URL` | Yes | PostgreSQL pooled connection string for app traffic |
 | `DATABASE_URL_UNPOOLED` | For Neon migrations | Direct connection string for Prisma Migrate |
-| `BOOTSTRAP_SECRET` | For first setup | Private initial-setup credential; at least 24 characters |
+| `CAMPUS_ADMIN_NAME` | First-time CLI setup | Approved administrator name; set only for `npm run campus:bootstrap` |
+| `CAMPUS_ADMIN_EMAIL` | First-time CLI setup | Approved administrator email; set only for `npm run campus:bootstrap` |
+| `CAMPUS_ADMIN_PASSWORD` | First-time CLI setup | Secure initial administrator password; set only for `npm run campus:bootstrap` |
 | `APP_URL` | For email and payments | Public base URL, for example `https://campus.example.edu` |
 | `EMAIL_FROM` | For email | Verified sender address for invitations and password resets |
 | `RESEND_API_KEY` | For email | Resend API key; keep it in deployment secrets |

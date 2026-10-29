@@ -25,7 +25,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campushub?schema=public
       DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/campushub?schema=public
-      BOOTSTRAP_SECRET: ci-only-bootstrap-secret-at-least-24-chars
+      CAMPUS_ADMIN_NAME: CI College Principal
+      CAMPUS_ADMIN_EMAIL: ci-college-admin@example.invalid
+      CAMPUS_ADMIN_PASSWORD: ci-only-admin-password-strong-2026
       APP_URL: http://localhost:3000
       SSLCOMMERZ_MODE: sandbox
       SSLCOMMERZ_STORE_ID: ci-store
@@ -40,6 +42,8 @@ jobs:
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run db:generate
+      - name: Provision single Siddheswari College on temporary CI database
+        run: npm run campus:bootstrap
       - run: npm run test:ci
       - run: npm run build
       - name: Smoke-test public routes and anonymous access

@@ -22,6 +22,15 @@ policies before importing real student data or enabling payments.
 
 ## Runtime configuration
 
+This is a **single-college** deployment. Public HTTP institution registration is
+disabled. On a new, empty database, run `npm run campus:bootstrap` from an
+authorized server shell with `CAMPUS_ADMIN_NAME`, `CAMPUS_ADMIN_EMAIL`, and
+`CAMPUS_ADMIN_PASSWORD` set securely; never put these credentials in the Git
+repository or a publicly readable shell history. Do not repeat the command on
+an existing database. If a previously installed college has demo branding,
+verify a backup and use the explicitly confirmed `npm run campus:rebrand`
+maintenance command. These operations never create a second college.
+
 See `.env.example` and `README.md` for variables. Use the host's secret store,
 not a committed `.env` file. `DATABASE_URL_UNPOOLED` must point to a direct
 connection for migrations. Prefer separate development, staging and production

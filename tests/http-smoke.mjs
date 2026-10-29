@@ -31,17 +31,19 @@ await request("/api/dashboard", 401);
 await request("/api/announcements", 401);
 await request("/api/guardians", 401);
 await request("/api/admin/audit-events", 401);
+await request("/api/auth/bootstrap", 404);
 
 // Explicit opt-in. Never bootstrap or seed a real college database from a smoke test.
 if (process.env.SMOKE_AUTHENTICATED === "1") {
   const url = new URL(origin);
   assert.ok(["127.0.0.1", "localhost"].includes(url.hostname), "Authenticated smoke tests require a local test server");
-  assert.ok(process.env.BOOTSTRAP_SECRET?.length >= 24, "Test-only bootstrap secret is required");
+  assert.ok(process.env.CAMPUS_ADMIN_EMAIL, "Test-only administrator email is required");
+  assert.ok(process.env.CAMPUS_ADMIN_PASSWORD?.length >= 12, "Test-only administrator password is required");
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
   const unique = randomBytes(5).toString("hex");
   const emailFor = (role) => `smoke-${role.toLowerCase()}-${unique}@example.invalid`;
-  const password = `SmokeOnly!${randomBytes(16).toString("hex")}`;
+  const password = process.env.CAMPUS_ADMIN_PASSWORD;
   const salt = randomBytes(16).toString("hex");
   const hash = `scrypt:${salt}:${scryptSync(password, salt, 64).toString("hex")}`;
 
@@ -65,32 +67,29 @@ if (process.env.SMOKE_AUTHENTICATED === "1") {
   };
 
   try {
-    const institution = await api("/api/auth/bootstrap", {
-      method: "POST", status: 201,
-      body: {
-        bootstrapSecret: process.env.BOOTSTRAP_SECRET,
-        institutionName: "Siddheswari College CI Test", institutionSlug: `siddheswari-ci-${unique}`,
-        name: "CI Principal", email: emailFor("admin"), password,
-      },
-    });
-    const adminToken = await signin(emailFor("admin"));
+    await api("/api/auth/bootstrap", { method: "POST", status: 404, body: { institutionName: "Untrusted University" } });
+    const adminToken = await signin(process.env.CAMPUS_ADMIN_EMAIL);
     const current = await api("/api/auth/session", { token: adminToken });
     assert.equal(current.role, "SUPER_ADMIN");
+    assert.equal(current.institution.name, "Siddheswari College");
+    await assert.rejects(prisma.institution.create({ data: {
+      singletonKey: 2, name: "Unapproved second college", slug: `extra-${unique}`,
+    } }), "PostgreSQL must refuse a second institution even when a different singleton key is supplied");
     await api("/api/dashboard", { token: adminToken });
 
     const createUser = async (role, name) => {
       const user = await prisma.user.create({ data: { email: emailFor(role), name, passwordHash: hash, emailVerified: new Date() } });
-      await prisma.membership.create({ data: { userId: user.id, institutionId: institution.institution.id, role, status: "ACTIVE" } });
+      await prisma.membership.create({ data: { userId: user.id, institutionId: current.institution.id, role, status: "ACTIVE" } });
       return user;
     };
     const teacher = await createUser("TEACHER", "CI Teacher");
     await createUser("EXAM_CONTROLLER", "CI Exam Controller");
     const student = await createUser("STUDENT", "CI Student");
-    const department = await prisma.department.create({ data: { institutionId: institution.institution.id, code: "CSE", name: "Computer Science" } });
+    const department = await prisma.department.create({ data: { institutionId: current.institution.id, code: "CSE", name: "Computer Science" } });
     const program = await prisma.program.create({ data: { departmentId: department.id, code: "HSC-CI", name: "CI HSC", level: "HSC", programType: "HSC" } });
     await prisma.studentProfile.create({ data: { userId: student.id, studentNumber: `SMOKE-${unique}`, programId: program.id } });
     const term = await prisma.academicTerm.create({ data: {
-      institutionId: institution.institution.id, name: `CI term ${unique}`,
+      institutionId: current.institution.id, name: `CI term ${unique}`,
       startsAt: new Date("2026-09-01T00:00:00Z"), endsAt: new Date("2027-03-01T00:00:00Z"), status: "ACTIVE",
     } });
     const course = await prisma.course.create({ data: { departmentId: department.id, code: `CI-${unique}`, title: "CI Exam Test", credits: 3 } });
