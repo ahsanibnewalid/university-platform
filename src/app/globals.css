@@ -4126,3 +4126,118 @@ select:focus-visible {
     font-size: 8px;
   }
 }
+
+/* Siddheswari College identity-first registration and onboarding. */
+.auth-role-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 6px;
+  margin: 4px 0 24px;
+  border: 1px solid #d5e2f4;
+  border-radius: 15px;
+  background: #eff5ff;
+}
+.auth-role-switch button {
+  cursor: pointer;
+  border: 0;
+  border-radius: 11px;
+  padding: 12px 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #2a4a79;
+  background: transparent;
+}
+.auth-role-switch button.selected {
+  background: white;
+  color: #1455ae;
+  box-shadow: 0 2px 8px #1b559722;
+}
+.college-auth-simple,
+.college-onboarding-page {
+  min-height: 100vh;
+  background: radial-gradient(circle at top right, #c6dbf8 0, transparent 48%), #eef4fd;
+  color: #163660;
+  display: grid;
+  align-items: start;
+  justify-items: center;
+  padding: clamp(22px, 6vw, 70px) 18px;
+}
+.college-auth-panel {
+  width: 100%;
+  max-width: 620px;
+  border: 1px solid #dce7f7;
+  border-radius: 26px;
+  padding: clamp(24px, 4vw, 44px);
+  background: white;
+  box-shadow: 0 18px 52px #153c6912;
+}
+.college-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 26px;
+  text-decoration: none;
+  color: #195bb2;
+  font-weight: 700;
+}
+.college-auth-kicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #165bb5;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+.college-auth-panel h1,
+.college-onboarding-shell > h1 {
+  font-size: clamp(29px, 4vw, 44px);
+  letter-spacing: -.045em;
+  line-height: 1.12;
+  margin: 14px 0;
+  color: #133b70;
+}
+.college-auth-panel h2 {font-size: 24px; margin: 0 0 9px; color: #133b70;}
+.college-auth-panel h3 {font-size: 16px; margin: 28px 0 10px; color: #234d80;}
+.college-auth-panel > p,
+.college-onboarding-shell > p {color: #4d6584; line-height: 1.7; margin: 0 0 25px;}
+.college-auth-form {display: grid; gap: 17px; margin: 22px 0;}
+.college-auth-form label {display: grid; gap: 8px; color: #254975; font-weight: 700; font-size: 14px;}
+.college-auth-form input,
+.college-auth-form select {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 15px;
+  font: inherit;
+  color: #143b69;
+  background: #f8fbff;
+  border: 1px solid #cddcf0;
+  border-radius: 11px;
+}
+.college-auth-form input:focus,
+.college-auth-form select:focus {outline: 2px solid #4a8ad4; outline-offset: 1px;}
+.college-auth-panel .auth-submit {display: flex; align-items: center; justify-content: center; gap: 10px;}
+.college-auth-panel .auth-error,
+.college-auth-panel .auth-success {padding: 15px; border-radius: 11px;}
+.college-auth-note {display: flex; gap: 10px; align-items: flex-start; padding: 16px; background: #edf5ff; border-radius: 13px; font-size: 13px;}
+.college-auth-note svg {flex-shrink: 0; color: #1d68c0; margin-top: 2px;}
+.college-onboarding-page {display: block;}
+.college-onboarding-shell {max-width: 1250px; margin: 0 auto;}
+.college-onboarding-grid {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 24px;}
+.college-onboarding-grid .college-auth-panel {max-width: none;}
+.college-issued-code {padding: 22px; border: 2px solid #93c2f5; border-radius: 18px; background: #fff; display: grid; gap: 10px; max-width: 620px;}
+.college-issued-code code {overflow-wrap: anywhere; font-size: 20px; font-weight: 800; color: #1b5eb1;}
+.college-issued-code small {color: #647c9d;}
+.college-issued-code button,
+.college-onboarding-list button {border: 1px solid #afc9e9; background: #e8f3ff; color: #16579d; padding: 9px 13px; border-radius: 9px; cursor: pointer; font-weight: 700;}
+.college-issued-code button {display: flex; align-items: center; gap: 8px; width: fit-content;}
+.college-onboarding-list {padding: 0; list-style: none; display: grid; gap: 10px;}
+.college-onboarding-list li {display: flex; gap: 12px; justify-content: space-between; align-items: center; padding: 13px; border: 1px solid #e1ebf7; border-radius: 10px;}
+.college-onboarding-list li span {display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere;}
+.college-onboarding-list li small {color: #6b80a0;}
+@media (max-width: 800px) {
+  .college-onboarding-grid {grid-template-columns: 1fr;}
+  .auth-role-switch button {font-size: 12px;}
+}

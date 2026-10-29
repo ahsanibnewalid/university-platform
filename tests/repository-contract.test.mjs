@@ -23,6 +23,25 @@ test("single-college provisioning is server-only and fixes Siddheswari College i
   assert.ok(singleCollegeMigration.includes('CHECK ("singletonKey" = 1)'));
 });
 
+test("student-ID registration is college-issued and staff signup cannot assign campus roles", () => {
+  const schema = read("prisma/schema.prisma");
+  const login = read("src/app/login/page.tsx");
+  const auth = read("src/lib/password-login.ts");
+  const staff = read("src/app/api/auth/staff-register/route.ts");
+  const student = read("src/app/api/auth/student-register/route.ts");
+  const registrar = read("src/app/api/admin/onboarding/route.ts");
+  const invitation = read("src/app/api/invitations/route.ts");
+  assert.ok(schema.includes("activationCodeHash"));
+  assert.ok(schema.includes("IdentityActivationPurpose"));
+  assert.ok(login.includes('name="identifier"'));
+  assert.ok(!login.includes('href="/accept-invitation"'));
+  assert.ok(auth.includes("studentProfile.findUnique"));
+  assert.ok(student.includes("activationCodeHash: tokenHash"));
+  assert.ok(registrar.includes("requireSession(registrarRoles)"));
+  assert.ok(staff.includes("MembershipStatus.INVITED"));
+  assert.ok(invitation.includes("status: 410"));
+});
+
 test("schema contains Siddheswari academic, payment-audit, and payroll domain models", () => {
   const schema = read("prisma/schema.prisma");
   for (const model of [

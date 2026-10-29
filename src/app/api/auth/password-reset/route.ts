@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       where: { email },
       select: { id: true, email: true, name: true },
     });
-    if (user) {
+    if (user?.email) {
       const token = randomBytes(32).toString("base64url");
       const tokenHash = createHash("sha256").update(token).digest("hex");
       await prisma.passwordResetToken.create({

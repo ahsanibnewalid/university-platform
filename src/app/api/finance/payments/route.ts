@@ -22,6 +22,9 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const session = await requireSession(paymentInitiatorRoles);
+    if (!session.user.email || !session.user.emailVerified) {
+      throw new AuthenticationError("Verify a Gmail address in your student account before using online payments.", 400);
+    }
     const input = await readJsonObject(request);
     const requestedInvoiceId = requiredText(input.invoiceId, "Invoice", 1, 100);
     const customerPhone = requiredText(input.customerPhone, "Phone number", 7, 20);

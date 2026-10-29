@@ -235,6 +235,11 @@ enum MembershipStatus {
   SUSPENDED
 }
 
+enum IdentityActivationPurpose {
+  STAFF_SIGNUP
+  STUDENT_EMAIL
+}
+
 enum CommunityVisibility {
   PUBLIC
   INSTITUTION
@@ -417,7 +422,7 @@ model Institution {
 
 model User {
   id                           String                  @id @default(cuid())
-  email                        String                  @unique
+  email                        String?                 @unique
   name                         String
   passwordHash                 String?
   imageUrl                     String?
@@ -444,6 +449,7 @@ model User {
   messageReactions             MessageReaction[]
   sessions                     AuthSession[]
   passwordResetTokens          PasswordResetToken[]
+  identityActivations          IdentityActivation[]
   guardianLinks                GuardianLink[]          @relation("Guardian")
   studentGuardians             GuardianLink[]          @relation("Student")
   taughtSections               CourseInstructor[]
@@ -649,6 +655,21 @@ model PasswordResetToken {
   @@index([userId, expiresAt])
 }
 
+model IdentityActivation {
+  id        String                    @id @default(cuid())
+  userId    String
+  tokenHash String                    @unique
+  email     String
+  purpose   IdentityActivationPurpose
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime                  @default(now())
+  user      User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+  @@index([expiresAt])
+}
+
 model Department {
   id            String           @id @default(cuid())
   institutionId String
@@ -729,6 +750,8 @@ model StudentProfile {
   address               String?
   admissionDate         DateTime?
   academicStatus        StudentAcademicStatus @default(ACTIVE)
+  activationCodeHash    String?
+  activationExpiresAt   DateTime?
   emergencyContactName  String?
   emergencyContactPhone String?
   createdAt             DateTime              @default(now())

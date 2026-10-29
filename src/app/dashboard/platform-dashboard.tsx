@@ -54,7 +54,7 @@ type ModuleKey =
   | "Analytics"
   | "Audit";
 type ApiData = Record<string, unknown>;
-type UserData = { id: string; name: string; email: string };
+type UserData = { id: string; name: string; email: string | null };
 type InstitutionData = { id: string; name: string; slug: string };
 type Field = {
   name: string;
@@ -136,23 +136,6 @@ const scheduleViewerRoles: CampusRole[] = [
   ...adminRoles,
   ...departmentRoles,
   ...courseRoles,
-];
-const inviteableRoles: CampusRole[] = [
-  CampusRole.STUDENT,
-  CampusRole.PARENT,
-  CampusRole.FACULTY,
-  CampusRole.TEACHER,
-  CampusRole.DEPARTMENT_CHAIR,
-  CampusRole.DEPARTMENT_HEAD,
-  CampusRole.PRINCIPAL,
-  CampusRole.UNIVERSITY_ADMIN,
-  CampusRole.REGISTRAR,
-  CampusRole.EXAM_CONTROLLER,
-  CampusRole.RECRUITER,
-  CampusRole.CAMPUS_BUSINESS,
-  CampusRole.MEDICAL_STUDENT,
-  CampusRole.LAW_STUDENT,
-  CampusRole.SUPER_ADMIN,
 ];
 
 async function apiRequest(endpoint: string, init?: RequestInit): Promise<ApiData> {
@@ -567,6 +550,7 @@ export default function PlatformDashboard({
           </nav>
           <div className="hub-sidebar-footer">
             <div className="hub-user-card"><span className="hub-user-dot">{initials(user.name)}</span><span><b>{user.name}</b><small>{roleLabel(role)}</small></span><button className="hub-icon-button" aria-label="Sign out" onClick={signOut}><LogOut size={15} /></button></div>
+            {studentRoles.includes(role) && <a className="hub-primary-button" href="/student/email">Connect Gmail for student services</a>}
             <p>Secure campus workspace · SSLCommerz payments</p>
           </div>
         </aside>
@@ -595,6 +579,9 @@ export default function PlatformDashboard({
                       />
               )}
               <div className="hub-actions-row">
+                {activeModule === "Administration" && adminRoles.includes(role) && (
+                  <a className="hub-primary-button" href="/admin/onboarding"><Plus size={16}/>Student IDs &amp; staff Gmail</a>
+                )}
                 {actions.map((action) => (
                   <button className="hub-primary-button" key={action.title} onClick={() => setOpenAction(action)}><Plus size={16} />{action.title}</button>
                 ))}
@@ -670,9 +657,6 @@ function actionList(
     return `${course?.code ?? ""} ${course?.title ?? ""} ${item.sectionCode ?? ""}`.trim();
   });
   const companies = choiceList(data.companies, (item) => String(item.name ?? ""));
-  const availableRoles = inviteableRoles
-    .filter((candidate) => candidate !== CampusRole.SUPER_ADMIN || role === CampusRole.SUPER_ADMIN)
-    .map((candidate) => ({ label: roleLabel(candidate), value: candidate }));
   switch (module) {
     case "Academics": {
       const actions: Action[] = [];
@@ -893,7 +877,6 @@ function actionList(
     case "Administration":
       if (!adminRoles.includes(role)) return [];
       return [
-        { title: "Invite campus member", endpoint: "/api/invitations", fields: [{ name: "name", label: "Name" }, { name: "email", label: "Email address", type: "email" }, { name: "role", label: "Campus role", type: "select", options: availableRoles }] },
         { title: "Add department", endpoint: "/api/departments", fields: [{ name: "name", label: "Department name" }, { name: "code", label: "Department code" }] },
         { title: "Create academic term", endpoint: "/api/terms", fields: [{ name: "name", label: "Term name" }, { name: "startsAt", label: "Starts", type: "date" }, { name: "endsAt", label: "Ends", type: "date" }, { name: "status", label: "Status", type: "select", options: ["PLANNED", "ACTIVE", "COMPLETED"].map((value) => ({ label: prettify(value), value })) }] },
       ];
@@ -1261,7 +1244,7 @@ function RecordSection({
               </div>
               {isEvent && <button className={`hub-record-action ${currentUserRsvp ? "hub-action-active" : ""}`} onClick={() => { void onAction("/api/events", "PATCH", { eventId: item.id }); }}>{currentUserRsvp ? <><Check size={13} />Going</> : "I'm interested"}</button>}
               {isPost && <button className={`hub-record-action ${currentUserReaction ? "hub-action-active" : ""}`} onClick={() => { void onAction(`/api/posts/${encodeURIComponent(String(item.id))}/reaction`, "PUT", { kind: "LIKE" }); }}><Heart size={13} />{Number((item._count as ApiData | undefined)?.reactions ?? 0)} Like</button>}
-              {isInvitation && <button className="hub-record-action" onClick={() => { void onAction(`/api/invitations/${encodeURIComponent(String(item.id))}`, "POST"); }}>Resend invite</button>}
+              {isInvitation && <span className="hub-record-action">Awaiting activation</span>}
               {isOpportunity && studentRoles.includes(role) && <button className="hub-record-action" onClick={() => onAction(`/api/opportunities/${encodeURIComponent(String(item.id))}/applications`, "POST", { coverLetter: "" })}>Apply</button>}
               {isLostFound && <button className="hub-record-action" onClick={() => { void onAction("/api/lost-found", "PATCH", { postId: item.id, status: "CLAIMED" }); }}>Claim item</button>}
               {isLink && role === CampusRole.STUDENT && !item.verifiedAt && <div className="hub-record-buttons"><button className="hub-record-action" onClick={() => { void onAction("/api/guardians", "PATCH", { guardianId: (item.guardian as ApiData | undefined)?.id, approve: true }); }}>Approve</button><button className="hub-record-action muted-action" onClick={() => { void onAction("/api/guardians", "PATCH", { guardianId: (item.guardian as ApiData | undefined)?.id, approve: false }); }}>Deny</button></div>}

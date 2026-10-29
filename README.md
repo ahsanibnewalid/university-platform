@@ -1,6 +1,6 @@
 # CampusHub
 
-CampusHub is a single-university digital-campus application built with Next.js,
+CampusHub is a single-college digital-campus application built with Next.js,
 TypeScript, Prisma, and PostgreSQL. Its product vision brings academic
 workflows, campus communications, social activity, administration, careers, and
 campus services into one role-aware web app.
@@ -11,8 +11,9 @@ campus businesses, and specialized medical and law programs. People can hold
 multiple roles at the university, with private records scoped by role.
 
 This repository is configured for **Siddheswari College only**, with a single
-institution and centrally managed user invitations. Visitors cannot register
-another institution or create an administrator from the login page.
+institution. Students activate their college-issued student ID; employees
+register only after the college approves their Gmail address and role. No one
+can register another institution or grant themselves an administrator role.
 
 This repository is an actively developed foundation, **not a finished or
 production-ready university platform**. Several workflows have a usable UI and
@@ -27,6 +28,14 @@ data.
   and a publish date in the past are displayed to unauthenticated visitors.
 - The dedicated `/parent` page serves verified parent accounts and reads
   institution-scoped family data from the existing dashboard API.
+- Student portal access uses **college student ID + password** (web and React
+  Native). First-time activation also requires a one-time college-issued code.
+  Students can add verified Gmail later for notifications, email recovery and
+  online payments; a Gmail address is not needed for basic academic access.
+- Staff, teachers and principal accounts use **approved Gmail + password**.
+  Email ownership is verified through a time-limited link, and appointment
+  roles are assigned exclusively by college administration. The generic
+  invitation signup UI/API has been retired.
 - `mobile-app/` contains a React Native / Expo TypeScript project targeting
   **both Android and iOS** with native authenticated campus overview, notices,
   coursework, finance, requests and account screens. Device testing and push
@@ -59,7 +68,8 @@ unvalidated development.
   emergency information
 - **Careers and collaboration:** internships, jobs, companies, recruiters, and
   research collaboration
-- **Administration:** institution membership, invitations, role-aware access,
+- **Administration:** institution membership, registrar-issued student IDs,
+  approved staff Gmail onboarding, role-aware access,
   and reporting
 - **Finance and HR:** BDT fee structures and invoices, SSLCommerz hosted checkout,
   server-verified/idempotent payment settlement, reconciliation audit logs,
@@ -70,7 +80,8 @@ unvalidated development.
 
 - Node.js 20.9 or later
 - PostgreSQL (a Neon development branch is configured for this workspace)
-- An email provider for invitations and password resets (Resend is currently
+- An email provider for staff registration, optional student Gmail verification
+  and password resets (Resend is currently
   integrated)
 
 ## Local setup
@@ -119,8 +130,16 @@ unvalidated development.
    ```
 
 6. Visit [http://localhost:3000](http://localhost:3000) and sign in using the
-   authorized administrator credentials established on the server. Additional
-   college accounts use the existing invitation workflow.
+   authorized administrator credentials established on the server. The registrar
+   opens `/admin/onboarding` to issue student IDs/activation codes and approve
+   employee Gmail addresses. Students activate at `/register/student`, then
+   sign in by student ID and password; employees verify approved Gmail at
+   `/register/staff` before choosing a password.
+
+   **Never give a student activation code to someone without checking their
+   college identity.** A student number by itself does not prove ownership.
+   Activation codes expire after seven days, are displayed only when issued,
+   and can be rotated by a registrar before use.
 
 If an **existing** deployment was previously initialized with generic or demo
 institution branding, take an approved database backup first, then a trusted
@@ -147,13 +166,16 @@ application. Do not use the development migration command in production.
 | `CAMPUS_ADMIN_EMAIL` | First-time CLI setup | Approved administrator email; set only for `npm run campus:bootstrap` |
 | `CAMPUS_ADMIN_PASSWORD` | First-time CLI setup | Secure initial administrator password; set only for `npm run campus:bootstrap` |
 | `APP_URL` | For email and payments | Public base URL, for example `https://campus.example.edu` |
-| `EMAIL_FROM` | For email | Verified sender address for invitations and password resets |
+| `EMAIL_FROM` | For email | Verified sender address for staff registration, student Gmail verification and password resets |
 | `RESEND_API_KEY` | For email | Resend API key; keep it in deployment secrets |
 | `SSLCOMMERZ_MODE` | For online payments | `sandbox` (default) or `live`; live mode requires HTTPS |
 | `SSLCOMMERZ_STORE_ID` | For online payments | SSLCommerz merchant store ID; keep it in deployment secrets |
 | `SSLCOMMERZ_STORE_PASSWORD` | For online payments | SSLCommerz merchant password; keep it in deployment secrets |
 
-Invitation and recovery messages require working email configuration. Do not
+Email onboarding and recovery require working mail configuration and an HTTPS
+`APP_URL` in production. While the Azure deployment is still accessible over
+HTTP by IP address, complete HTTPS/domain setup before enabling Gmail
+registration or real account login. Do not
 commit `.env` files, Neon credentials, or provider secrets.
 
 ## Implemented foundation
@@ -165,7 +187,8 @@ commit `.env` files, Neon credentials, or provider secrets.
   campus-service responsibilities
 - Password hashing, database-backed sessions, sign-in throttling, logout, and
   membership switching
-- Initial institution bootstrap, invitation acceptance, and password recovery
+- Initial institution bootstrap, student-ID activation, verified staff Gmail
+  onboarding, optional student Gmail verification and password recovery
 - Role-aware dashboard with server-backed overview and module navigation
 - Initial academic, coursework, transcript, guardian, announcement, messaging,
   campus-social, events, career, research, campus-service, support, and

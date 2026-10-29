@@ -110,7 +110,7 @@ export default function App() {
   const [starting, setStarting] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [tab, setTab] = useState<Tab>("Overview");
   const [data, setData] = useState<RecordValue>({});
@@ -209,11 +209,11 @@ export default function App() {
     } finally { setBusy(false); }
   };
   const login = async () => {
-    if (!email.trim() || !password) return;
+    if (!identifier.trim() || !password) return;
     setBusy(true); setError("");
     try {
       const result = await request<RecordValue>("/api/mobile/auth/login", undefined, {
-        method: "POST", body: JSON.stringify({ email: email.trim(), password }),
+        method: "POST", body: JSON.stringify({ identifier: identifier.trim(), password }),
       });
       const nextToken = result.token;
       if (typeof nextToken !== "string") throw new Error("The server did not return a session token.");
@@ -256,7 +256,7 @@ export default function App() {
       <View style={styles.loginBox}>
         <Text style={styles.brand}>Siddheswari College</Text><Text style={styles.heading}>Welcome to CampusHub</Text>
         <Text style={styles.detail}>Secure Android and iOS access for students, guardians, teachers and campus staff.</Text>
-        <Field labelText="Email" value={email} onChangeText={setEmail} keyboardType="email-address" hint="name@example.com"/>
+        <Field labelText="Student ID or approved staff Gmail" value={identifier} onChangeText={setIdentifier} hint="College student ID / name@gmail.com"/>
         <Field labelText="Password" value={password} onChangeText={setPassword} secure hint="Your college account password"/>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <ActionButton title={busy ? "Signing in…" : "Sign in"} disabled={busy} onPress={() => void login()}/>

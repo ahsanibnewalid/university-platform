@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomBytes, scryptSync } from "node:crypto";
+import { createHash, randomBytes, scryptSync } from "node:crypto";
 
 const origin = process.env.SMOKE_BASE_URL || "http://127.0.0.1:3000";
 
@@ -24,6 +24,8 @@ async function waitUntilReady() {
 await waitUntilReady();
 await request("/", 200);
 await request("/login", 200);
+await request("/register/student", 200);
+await request("/register/staff", 200);
 await request("/academics", 200);
 await request("/notices", 200);
 await request("/api/health", 200);
@@ -61,7 +63,7 @@ if (process.env.SMOKE_AUTHENTICATED === "1") {
     return data;
   }
   const signin = async (email) => {
-    const body = await api("/api/mobile/auth/login", { method: "POST", body: { email, password } });
+    const body = await api("/api/mobile/auth/login", { method: "POST", body: { identifier: email, password } });
     assert.ok(typeof body.token === "string" && body.token.length >= 40);
     return body.token;
   };
@@ -88,6 +90,46 @@ if (process.env.SMOKE_AUTHENTICATED === "1") {
     const department = await prisma.department.create({ data: { institutionId: current.institution.id, code: "CSE", name: "Computer Science" } });
     const program = await prisma.program.create({ data: { departmentId: department.id, code: "HSC-CI", name: "CI HSC", level: "HSC", programType: "HSC" } });
     await prisma.studentProfile.create({ data: { userId: student.id, studentNumber: `SMOKE-${unique}`, programId: program.id } });
+    // A student cannot self-assign a record or staff role. The college issues
+    // the ID and a one-time code, after which students choose their password.
+    await api("/api/invitations", { token: adminToken, method: "POST", status: 410, body: {} });
+    await api("/api/admin/onboarding", { method: "POST", status: 401,
+      body: { kind: "staff", name: "Fake principal", email: "fake@gmail.com", role: "PRINCIPAL" } });
+    const issued = await api("/api/admin/onboarding", { token: adminToken, method: "POST", status: 201,
+      body: { kind: "student", name: "College Approved Student", studentNumber: `ACTIVATE-${unique}`, programId: program.id } });
+    assert.ok(issued.activationCode?.length >= 20);
+    await api("/api/auth/student-register", { method: "POST", status: 400,
+      body: { studentNumber: `ACTIVATE-${unique}`, activationCode: "wrong-code-123456789012", password } });
+    await api("/api/auth/student-register", { method: "POST",
+      body: { studentNumber: `ACTIVATE-${unique}`, activationCode: issued.activationCode, password } });
+    const activatedToken = await signin(`ACTIVATE-${unique}`);
+    const activatedSession = await api("/api/auth/session", { token: activatedToken });
+    assert.equal(activatedSession.role, "STUDENT");
+    assert.equal(activatedSession.user.email, null);
+    const studentGmail = `ci-student-${unique}@gmail.com`;
+    const studentGmailToken = randomBytes(32).toString("base64url");
+    await prisma.identityActivation.create({ data: { userId: activatedSession.user.id,
+      email: studentGmail, purpose: "STUDENT_EMAIL",
+      tokenHash: createHash("sha256").update(studentGmailToken).digest("hex"),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
+    await api("/api/auth/student-email", { token: activatedToken, method: "PUT",
+      body: { token: studentGmailToken } });
+    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: activatedSession.user.id } })).email, studentGmail);
+    await api("/api/mobile/auth/login", { method: "POST", status: 401,
+      body: { identifier: studentGmail, password } });
+    const staffEmail = `ci-college-${unique}@gmail.com`;
+    await api("/api/admin/onboarding", { token: adminToken, method: "POST", status: 201,
+      body: { kind: "staff", name: "Approved Gmail Teacher", email: staffEmail, role: "TEACHER" } });
+    const authorizedStaff = await prisma.user.findUniqueOrThrow({ where: { email: staffEmail } });
+    const emailToken = randomBytes(32).toString("base64url");
+    await prisma.identityActivation.create({ data: { userId: authorizedStaff.id,
+      email: staffEmail, purpose: "STAFF_SIGNUP",
+      tokenHash: createHash("sha256").update(emailToken).digest("hex"),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
+    await api("/api/auth/staff-register", { method: "PUT",
+      body: { token: emailToken, password } });
+    const approvedStaffToken = await signin(staffEmail);
+    assert.equal((await api("/api/auth/session", { token: approvedStaffToken })).role, "TEACHER");
     const term = await prisma.academicTerm.create({ data: {
       institutionId: current.institution.id, name: `CI term ${unique}`,
       startsAt: new Date("2026-09-01T00:00:00Z"), endsAt: new Date("2027-03-01T00:00:00Z"), status: "ACTIVE",
@@ -100,7 +142,7 @@ if (process.env.SMOKE_AUTHENTICATED === "1") {
 
     const teacherToken = await signin(emailFor("TEACHER"));
     const reviewerToken = await signin(emailFor("EXAM_CONTROLLER"));
-    const studentToken = await signin(emailFor("STUDENT"));
+    const studentToken = await signin(`SMOKE-${unique}`);
     await api("/api/admin/audit-events", { token: teacherToken, status: 403 });
     await api("/api/exams", { token: teacherToken, method: "PATCH", status: 400,
       body: { examId: exam.id, studentId: student.id, points: 89, release: true } });
