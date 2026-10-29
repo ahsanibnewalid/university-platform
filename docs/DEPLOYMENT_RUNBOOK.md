@@ -31,6 +31,34 @@ an existing database. If a previously installed college has demo branding,
 verify a backup and use the explicitly confirmed `npm run campus:rebrand`
 maintenance command. These operations never create a second college.
 
+### Student ID and employee email onboarding
+
+1. College management approves the registrar or principal accounts first.
+   An authorized registrar uses `/admin/onboarding` to issue a unique college
+   student number and one-time activation code. The code is shown **once**;
+   identity-check the student before distributing it. The code expires after
+   seven days and can be rotated by an authorized registrar.
+2. The student activates at `/register/student` using that ID, code, and a
+   personally chosen password. Login then uses **student ID + password**;
+   Gmail is not required to read basic academic records.
+3. An authorized principal or super administrator preapproves each employee's
+   Gmail address and appointment role from the same registrar workspace.
+   The employee verifies Gmail at `/register/staff`, then chooses a password.
+   Only a super administrator can approve a principal appointment.
+4. Students may link a verified Gmail later at `/student/email` for receipts,
+   notices and password recovery. Never treat a submitted but unverified email
+   as proof of account ownership. Online payment checkout requires verified
+   email; the existing payment gateway has its own launch requirements.
+5. Generic invitation signup is retired. Legacy invitation rows are retained
+   for audit/data continuity, but new account creation goes through the approved
+   roster workflows. Confirm that any formerly invited employees are now
+   preapproved for Gmail registration.
+
+**Production blocking requirement:** `APP_URL` must be the final HTTPS origin,
+and `RESEND_API_KEY` plus `EMAIL_FROM` must be configured for staff Gmail
+activation, student email verification and password recovery. The current
+plain-HTTP Azure IP cannot be used for live credential registration.
+
 See `.env.example` and `README.md` for variables. Use the host's secret store,
 not a committed `.env` file. `DATABASE_URL_UNPOOLED` must point to a direct
 connection for migrations. Prefer separate development, staging and production

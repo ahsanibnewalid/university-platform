@@ -123,7 +123,7 @@ export async function getCurrentSession() {
       userId: true,
       membershipId: true,
       expiresAt: true,
-      user: { select: { id: true, name: true, email: true } },
+      user: { select: { id: true, name: true, email: true, emailVerified: true } },
       membership: {
         select: {
           id: true,

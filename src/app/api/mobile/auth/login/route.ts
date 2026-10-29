@@ -9,13 +9,14 @@ export async function POST(request: Request) {
       return Response.json({ error: "Content-Type must be application/json." }, { status: 415 });
     }
     const input = await readJsonObject(request);
-    const { user, membership } = await authenticateCampusCredentials(input, "mobile");
+    const { user, membership, needsStudentEmail } = await authenticateCampusCredentials(input, "mobile");
     const token = await createMobileSession(user.id, membership.id, request.headers.get("user-agent"));
     return Response.json({
       token,
       user: { id: user.id, name: user.name },
       institution: { id: membership.institution.id, name: membership.institution.name, slug: membership.institution.slug },
       role: membership.role,
+      needsStudentEmail,
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return authErrorResponse(error);
