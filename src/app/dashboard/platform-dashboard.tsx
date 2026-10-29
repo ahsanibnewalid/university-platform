@@ -8,7 +8,6 @@ import {
   Building2,
   CalendarDays,
   Check,
-  ChevronDown,
   ChevronRight,
   CircleHelp,
   ClipboardList,
@@ -262,7 +261,7 @@ async function loadModuleData(module: ModuleKey, role: CampusRole): Promise<ApiD
       return get("/api/research");
     case "Administration": {
       const requests = [
-        get("/api/invitations"),
+        get("/api/faculties"),
         get("/api/departments"),
         get("/api/programs"),
         get("/api/terms"),
@@ -277,9 +276,9 @@ async function loadModuleData(module: ModuleKey, role: CampusRole): Promise<ApiD
       if (reportRoles.includes(role)) {
         requests.push(get("/api/reports"));
       }
-      const [invitations, departments, programs, terms, companies, memberships, reports] =
+      const [faculties, departments, programs, terms, companies, memberships, reports] =
         await Promise.all(requests);
-      return { ...invitations, ...departments, ...programs, ...terms, ...companies, ...memberships, ...reports };
+      return { ...faculties, ...departments, ...programs, ...terms, ...companies, ...memberships, ...reports };
     }
     case "Library":
       return get("/api/campus");
@@ -516,7 +515,7 @@ export default function PlatformDashboard({
         <button className="hub-icon-button hub-menu-toggle" aria-label="Open campus navigation" onClick={() => setMobileNavOpen((open) => !open)}>{mobileNavOpen ? <X size={20} /> : <Menu size={20} />}</button>
         <button className="hub-brand" onClick={() => navigate("Home")}>
           <span className="brand-mark"><GraduationCap size={21} /></span>
-          <span>campus<span>hub</span></span>
+          <span>Siddheswari <span>College</span></span>
         </button>
         <label className="hub-top-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search loaded campus records..." /><kbd>⌘ K</kbd></label>
         <div className="hub-top-user">
@@ -529,7 +528,7 @@ export default function PlatformDashboard({
 
       <div className="hub-layout">
         <aside className={`hub-sidebar ${mobileNavOpen ? "hub-sidebar-open" : ""}`}>
-          <div className="hub-institution-select"><span className="hub-institution-mark"><GraduationCap size={17} /></span><span><b>{activeInstitution.name}</b><small>Verified campus workspace</small></span><ChevronDown size={15} /></div>
+          <div className="hub-institution-select"><span className="hub-institution-mark"><GraduationCap size={17} /></span><span><b>{activeInstitution.name}</b><small>National University affiliated · Dhaka</small></span></div>
           {memberships.length > 1 && (
             <label className="role-switch-label">SWITCH ACTIVE ROLE
               <select value={currentMembershipId} onChange={(event) => void changeRole(event.currentTarget.value)}>
@@ -541,9 +540,12 @@ export default function PlatformDashboard({
               </select>
             </label>
           )}
-          <nav className="hub-navigation" aria-label="CampusHub modules">
+          <nav className="hub-navigation" aria-label="Siddheswari College modules">
             {visibleSections.map((section) => (
-              <button key={section.key} className={`hub-nav-item ${activeModule === section.key ? "hub-nav-active" : ""}`} onClick={() => navigate(section.key)}>
+              <button key={section.key} className={`hub-nav-item ${activeModule === section.key ? "hub-nav-active" : ""}`} onClick={() => {
+                if (section.key === "Administration" && ([CampusRole.SUPER_ADMIN, CampusRole.PRINCIPAL, CampusRole.REGISTRAR, CampusRole.UNIVERSITY_ADMIN] as CampusRole[]).includes(role)) router.push("/admin");
+                else navigate(section.key);
+              }}>
                 {section.icon}<span>{section.label}</span>{section.key === "Home" && data.unreadNotifications ? <i>{String(data.unreadNotifications)}</i> : null}
               </button>
             ))}
@@ -580,7 +582,10 @@ export default function PlatformDashboard({
               )}
               <div className="hub-actions-row">
                 {activeModule === "Administration" && adminRoles.includes(role) && (
-                  <a className="hub-primary-button" href="/admin/onboarding"><Plus size={16}/>Student IDs &amp; staff Gmail</a>
+                  <a className="hub-primary-button" href="/admin/onboarding"><Plus size={16}/>Registration approvals</a>
+                )}
+                {activeModule === "Administration" && ([CampusRole.SUPER_ADMIN, CampusRole.PRINCIPAL, CampusRole.REGISTRAR, CampusRole.UNIVERSITY_ADMIN] as CampusRole[]).includes(role) && (
+                  <a className="hub-primary-button" href="/admin/roles"><ShieldCheck size={16}/>People &amp; roles</a>
                 )}
                 {actions.map((action) => (
                   <button className="hub-primary-button" key={action.title} onClick={() => setOpenAction(action)}><Plus size={16} />{action.title}</button>
@@ -608,7 +613,7 @@ export default function PlatformDashboard({
               {activeModule === "Messages" && !records.length && <EmptyModule activeModule={activeModule} onAction={() => setOpenAction(messageAction(data))} />}
             </>
           )}
-          <footer className="hub-main-footer"><span>CampusHub · Secure by institution · Built for your whole campus</span><a href="/README.md" onClick={(event) => event.preventDefault()}>Privacy & safety</a></footer>
+          <footer className="hub-main-footer"><span>Siddheswari College · National University affiliated · Dhaka</span><span>Records protected by role-based access</span></footer>
         </section>
       </div>
 
@@ -877,7 +882,19 @@ function actionList(
     case "Administration":
       if (!adminRoles.includes(role)) return [];
       return [
-        { title: "Add department", endpoint: "/api/departments", fields: [{ name: "name", label: "Department name" }, { name: "code", label: "Department code" }] },
+        { title: "Add faculty", endpoint: "/api/faculties", fields: [{ name: "name", label: "Faculty name" }, { name: "code", label: "Faculty code" }] },
+        { title: "Add department", endpoint: "/api/departments", fields: [
+          { name: "name", label: "Department name" }, { name: "code", label: "Department code" },
+          { name: "facultyId", label: "Faculty (optional)", type: "select", required: false,
+            options: choiceList(data.faculties, (item) => String(item.name ?? item.code ?? "Faculty")) },
+        ] },
+        { title: "Add academic program", endpoint: "/api/programs", fields: [
+          { name: "departmentId", label: "Department", type: "select", options: choiceList(data.departments, (item) => String(item.name ?? item.code ?? "Department")) },
+          { name: "name", label: "Program name", placeholder: "e.g. BSc in Computer Science" },
+          { name: "code", label: "Program code", placeholder: "e.g. CSE" },
+          { name: "level", label: "Academic level", type: "select", options: ["HSC", "Honours", "Degree", "Professional Honours", "Masters"].map((value) => ({ label: value, value })) },
+          { name: "programType", label: "Program category", type: "select", options: ["HSC", "HONOURS", "DEGREE", "PROFESSIONAL_HONOURS", "MASTERS"].map((value) => ({ label: prettify(value), value })) },
+        ] },
         { title: "Create academic term", endpoint: "/api/terms", fields: [{ name: "name", label: "Term name" }, { name: "startsAt", label: "Starts", type: "date" }, { name: "endsAt", label: "Ends", type: "date" }, { name: "status", label: "Status", type: "select", options: ["PLANNED", "ACTIVE", "COMPLETED"].map((value) => ({ label: prettify(value), value })) }] },
       ];
     case "Fees":

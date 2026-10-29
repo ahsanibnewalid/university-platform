@@ -235,6 +235,13 @@ enum MembershipStatus {
   SUSPENDED
 }
 
+enum StudentRegistrationStatus {
+  NOT_REQUESTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum IdentityActivationPurpose {
   STAFF_SIGNUP
   STUDENT_EMAIL
@@ -750,6 +757,10 @@ model StudentProfile {
   address               String?
   admissionDate         DateTime?
   academicStatus        StudentAcademicStatus @default(ACTIVE)
+  registrationStatus    StudentRegistrationStatus @default(NOT_REQUESTED)
+  registrationRequestedAt DateTime?
+  registrationReviewedAt  DateTime?
+  registrationReviewedById String?
   activationCodeHash    String?
   activationExpiresAt   DateTime?
   emergencyContactName  String?
@@ -762,6 +773,7 @@ model StudentProfile {
   currentTerm           AcademicTerm?         @relation("StudentCurrentTerm", fields: [currentTermId], references: [id], onDelete: SetNull)
 
   @@index([programId, academicStatus])
+  @@index([registrationStatus, registrationRequestedAt])
   @@index([batchId, academicStatus])
   @@index([currentTermId])
 }

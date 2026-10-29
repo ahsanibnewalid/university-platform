@@ -112,6 +112,8 @@ export default function App() {
   const [error, setError] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [registeringStudent, setRegisteringStudent] = useState(false);
   const [tab, setTab] = useState<Tab>("Overview");
   const [data, setData] = useState<RecordValue>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -225,6 +227,23 @@ export default function App() {
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Sign-in failed."); }
     finally { setBusy(false); }
   };
+  const requestStudentRegistration = async () => {
+    if (identifier.trim().length < 2 || identifier.includes("@")) {
+      setError("Enter your college-issued student ID, not a Gmail address."); return;
+    }
+    if (password.length < 12 || password !== confirmPassword) {
+      setError("Use a password of at least 12 characters and confirm it correctly."); return;
+    }
+    setBusy(true); setError("");
+    try {
+      const result = await request<RecordValue>("/api/auth/student-register", undefined, {
+        method: "POST", body: JSON.stringify({ studentNumber: identifier.trim(), password }),
+      });
+      Alert.alert("Request submitted", String(result.message ?? "Wait for college registrar approval before signing in."));
+      setPassword(""); setConfirmPassword(""); setRegisteringStudent(false);
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Registration could not be submitted."); }
+    finally { setBusy(false); }
+  };
   const logout = async () => {
     if (token) {
       try { await request("/api/mobile/auth/logout", token, { method: "POST", body: "{}" }); }
@@ -254,13 +273,15 @@ export default function App() {
   if (!session || !token) return <SafeAreaView style={styles.root}><StatusBar barStyle="light-content"/>
     <KeyboardAvoidingView style={styles.center} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={styles.loginBox}>
-        <Text style={styles.brand}>Siddheswari College</Text><Text style={styles.heading}>Welcome to CampusHub</Text>
-        <Text style={styles.detail}>Secure Android and iOS access for students, guardians, teachers and campus staff.</Text>
-        <Field labelText="Student ID or approved staff Gmail" value={identifier} onChangeText={setIdentifier} hint="College student ID / name@gmail.com"/>
+        <Text style={styles.brand}>Siddheswari College</Text><Text style={styles.heading}>{registeringStudent ? "Request student registration" : "Welcome to Siddheswari"}</Text>
+        <Text style={styles.detail}>{registeringStudent ? "A college reviewer verifies your roster identity before enabling your account." : "Secure Android and iOS access for students, guardians, teachers and college staff."}</Text>
+        <Field labelText={registeringStudent ? "College student ID" : "Student ID or approved staff Gmail"} value={identifier} onChangeText={setIdentifier} hint="College student ID / name@gmail.com"/>
         <Field labelText="Password" value={password} onChangeText={setPassword} secure hint="Your college account password"/>
+        {registeringStudent && <Field labelText="Confirm password" value={confirmPassword} onChangeText={setConfirmPassword} secure hint="Repeat your new password"/>}
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <ActionButton title={busy ? "Signing in…" : "Sign in"} disabled={busy} onPress={() => void login()}/>
-        <Text style={styles.detail}>Use the existing college portal account. Passwords are never stored on this device.</Text>
+        <ActionButton title={busy ? "Please wait…" : registeringStudent ? "Submit for college approval" : "Sign in"} disabled={busy} onPress={() => void (registeringStudent ? requestStudentRegistration() : login())}/>
+        <ActionButton title={registeringStudent ? "Back to login" : "Register student ID"} quiet disabled={busy} onPress={() => { setRegisteringStudent(!registeringStudent); setError(""); setPassword(""); setConfirmPassword(""); }}/>
+        <Text style={styles.detail}>Only college-approved records can be activated. Passwords are never stored on this device.</Text>
       </View>
     </KeyboardAvoidingView></SafeAreaView>;
 
@@ -275,7 +296,7 @@ export default function App() {
   const canRequestLeave = isStudent || isParent;
 
   return <SafeAreaView style={styles.root}><StatusBar barStyle="light-content"/>
-    <View style={styles.header}><View><Text style={styles.brand}>CampusHub</Text>
+    <View style={styles.header}><View><Text style={styles.brand}>Siddheswari College</Text>
       <Text style={styles.headerSubtitle}>{session.institution.name} · {role.replaceAll("_", " ")}</Text></View>
       {busy ? <ActivityIndicator color="#fff"/> : <Pressable onPress={() => void reload()} accessibilityLabel="Refresh campus data"><Text style={styles.headerLink}>Refresh</Text></Pressable>}
     </View>

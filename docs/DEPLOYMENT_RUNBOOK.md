@@ -63,13 +63,15 @@ The resulting user must sign in at `/login`; do so only after HTTPS is live.
 ### Student ID and employee email onboarding
 
 1. College management approves the registrar or principal accounts first.
-   An authorized registrar uses `/admin/onboarding` to issue a unique college
-   student number and one-time activation code. The code is shown **once**;
-   identity-check the student before distributing it. The code expires after
-   seven days and can be rotated by an authorized registrar.
-2. The student activates at `/register/student` using that ID, code, and a
-   personally chosen password. Login then uses **student ID + password**;
-   Gmail is not required to read basic academic records.
+   An authorized registrar uses `/admin/onboarding` to add the student's
+   official ID and program to the college roster. No activation code is needed.
+2. The student submits the ID and a personally chosen password at
+   `/register/student`. This creates a **pending registration**, not an active
+   membership. The registrar, principal, student-affairs officer or appointed
+   department reviewer must verify the student's identity and official records
+   before explicitly approving it. Approval and rejection are audited. The
+   student then logs in using **student ID + password**; Gmail is optional for
+   basic academic access. Rejected requests may be resubmitted.
 3. An authorized principal or super administrator preapproves each employee's
    Gmail address and appointment role from the same registrar workspace.
    The employee verifies Gmail at `/register/staff`, then chooses a password.
@@ -82,6 +84,13 @@ The resulting user must sign in at `/login`; do so only after HTTPS is live.
    for audit/data continuity, but new account creation goes through the approved
    roster workflows. Confirm that any formerly invited employees are now
    preapproved for Gmail registration.
+6. Super Admin and Principal can manage approved employee appointment roles and
+   suspend/reactivate non-Super-Admin memberships at `/admin/roles`. No web
+   route can self-assign the Super Admin role. A suspended membership cannot
+   authenticate or use a previously issued session.
+   Department-review access additionally requires a department chair appointment
+   in that same workspace; holding a role without an appointment does not grant
+   access to a different department's student records.
 
 **Production blocking requirement:** `APP_URL` must be the final HTTPS origin,
 and `RESEND_API_KEY` plus `EMAIL_FROM` must be configured for staff Gmail

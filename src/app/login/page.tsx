@@ -100,7 +100,7 @@ export default function LoginPage() {
           )}
         </div>
 
-        <div className="auth-access-note"><LockKeyhole size={17}/><p><strong>Siddheswari College only.</strong> Students register using an ID and activation code issued by the college. Staff Gmail addresses must be approved by college administration. No public institution or principal signup.</p></div>
+        <div className="auth-access-note"><LockKeyhole size={17}/><p><strong>Siddheswari College only.</strong> Students request an account using a college-rostered ID and password, then wait for approval by an authorized college officer. Staff Gmail addresses must be preapproved. No public institution or principal signup.</p></div>
         <div className="auth-footer"><Link href="/"><ArrowLeft size={14}/> College website</Link><Link href={accountType === "student" ? "/register/student" : "/register/staff"}>{accountType === "student" ? "Register student ID" : "Register approved Gmail"} <ArrowRight size={14}/></Link></div>
       </section>
       <aside className="auth-aside">

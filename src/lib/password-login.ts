@@ -1,4 +1,4 @@
-import { CampusRole, MembershipStatus } from "@prisma/client";
+import { CampusRole, MembershipStatus, StudentRegistrationStatus } from "@prisma/client";
 import { AuthenticationError, hashLoginIdentifier, normalizeEmail, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -37,17 +37,21 @@ export async function authenticateCampusCredentials(input: Record<string, unknow
       orderBy: { createdAt: "asc" as const },
     },
   };
+  const student = !emailLogin ? await prisma.studentProfile.findUnique({
+    where: { studentNumber: normalized },
+    include: { user: { include: withMembership } },
+  }) : null;
   const user = emailLogin
     ? await prisma.user.findUnique({ where: { email: normalized }, include: withMembership })
-    : (await prisma.studentProfile.findUnique({
-        where: { studentNumber: normalized },
-        include: { user: { include: withMembership } },
-      }))?.user;
+    : student?.user;
   const validPassword = await verifyPassword(input.password, user?.passwordHash ?? dummyPasswordHash);
   const membership = user?.memberships.find((item) =>
     (emailLogin ? !studentRoles.has(item.role) : studentRoles.has(item.role)) &&
     (typeof input.membershipId !== "string" || item.id === input.membershipId),
   );
+  if (user && validPassword && !membership && student?.registrationStatus === StudentRegistrationStatus.PENDING) {
+    throw new AuthenticationError("Your student registration is waiting for college approval.", 403);
+  }
   if (!user || !validPassword || !membership) {
     await prisma.loginAttempt.create({ data: { emailHash } });
     throw new AuthenticationError("ID or email and password are incorrect.", 401);

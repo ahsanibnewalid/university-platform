@@ -1,5 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
-import { CampusRole, MembershipStatus, Prisma } from "@prisma/client";
+import { CampusRole, MembershipStatus, Prisma, StudentRegistrationStatus } from "@prisma/client";
 import { assertSameOrigin, AuthenticationError, authErrorResponse, normalizeEmail, requireSession } from "@/lib/auth";
 import { readJsonObject, requiredText } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
@@ -11,30 +10,35 @@ const staffRoles = new Set<CampusRole>([
   CampusRole.EXAM_CONTROLLER, CampusRole.ACCOUNTANT, CampusRole.FINANCE_ADMIN,
 ]);
 const registrarRoles: CampusRole[] = [
-  CampusRole.SUPER_ADMIN, CampusRole.PRINCIPAL, CampusRole.REGISTRAR, CampusRole.UNIVERSITY_ADMIN,
+  CampusRole.SUPER_ADMIN, CampusRole.PRINCIPAL, CampusRole.REGISTRAR,
+  CampusRole.UNIVERSITY_ADMIN, CampusRole.STUDENT_AFFAIRS,
 ];
 const staffApprovalRoles: CampusRole[] = [CampusRole.SUPER_ADMIN, CampusRole.PRINCIPAL];
-const codeLifetime = 7 * 24 * 60 * 60 * 1000;
+const departmentReviewRoles: CampusRole[] = [CampusRole.DEPARTMENT_CHAIR, CampusRole.DEPARTMENT_HEAD];
+const reviewRoles = [...registrarRoles, ...departmentReviewRoles];
 
-function newStudentCode() {
-  const code = randomBytes(18).toString("base64url");
-  return { code, hash: createHash("sha256").update(code).digest("hex"), expiresAt: new Date(Date.now() + codeLifetime) };
+function departmentRestriction(role: CampusRole, userId: string) {
+  return departmentReviewRoles.includes(role) ? { chairId: userId } : {};
 }
 
 export async function GET() {
   try {
-    const session = await requireSession(registrarRoles);
+    const session = await requireSession(reviewRoles);
     const institutionId = session.membership.institutionId;
+    const programWhere = { department: { institutionId, ...departmentRestriction(session.membership.role, session.userId) } };
     const [programs, students, staff] = await Promise.all([
       prisma.program.findMany({
-        where: { department: { institutionId } },
+        where: programWhere,
         select: { id: true, name: true, code: true, department: { select: { name: true } } },
         orderBy: { name: "asc" }, take: 200,
       }),
       prisma.studentProfile.findMany({
-        where: { user: { memberships: { some: { institutionId, role: CampusRole.STUDENT, status: MembershipStatus.INVITED } } } },
-        select: { studentNumber: true, activationExpiresAt: true, user: { select: { name: true } } },
-        orderBy: { createdAt: "desc" }, take: 100,
+        where: { registrationStatus: { in: [StudentRegistrationStatus.NOT_REQUESTED, StudentRegistrationStatus.PENDING, StudentRegistrationStatus.REJECTED] },
+          program: programWhere,
+          user: { memberships: { some: { institutionId, role: CampusRole.STUDENT, status: MembershipStatus.INVITED } } } },
+        select: { studentNumber: true, registrationStatus: true, registrationRequestedAt: true,
+          program: { select: { name: true } }, user: { select: { name: true } } },
+        orderBy: { registrationRequestedAt: { sort: "desc", nulls: "last" } }, take: 150,
       }),
       prisma.membership.findMany({
         where: { institutionId, status: MembershipStatus.INVITED, role: { in: [...staffRoles] } },
@@ -42,7 +46,7 @@ export async function GET() {
         orderBy: { createdAt: "desc" }, take: 100,
       }),
     ]);
-    return Response.json({ programs, students, staff,
+    return Response.json({ programs, students, staff: staffApprovalRoles.includes(session.membership.role) ? staff : [],
       canApproveStaff: staffApprovalRoles.includes(session.membership.role) });
   } catch (error) { return authErrorResponse(error); }
 }
@@ -50,7 +54,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
-    const session = await requireSession(registrarRoles);
+    const session = await requireSession(reviewRoles);
     const input = await readJsonObject(request);
     const name = requiredText(input.name, "Full name", 2, 120);
     const institutionId = session.membership.institutionId;
@@ -58,25 +62,24 @@ export async function POST(request: Request) {
       const studentNumber = requiredText(input.studentNumber, "Student ID", 2, 50);
       const programId = requiredText(input.programId, "Program", 5, 100);
       const program = await prisma.program.findFirst({
-        where: { id: programId, department: { institutionId } }, select: { id: true },
+        where: { id: programId, department: { institutionId,
+          ...departmentRestriction(session.membership.role, session.userId) } }, select: { id: true },
       });
       if (!program) throw new AuthenticationError("Choose a program belonging to Siddheswari College.", 400);
-      const activation = newStudentCode();
       await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({ data: { name } });
         await tx.studentProfile.create({
-          data: { userId: user.id, programId, studentNumber,
-            activationCodeHash: activation.hash, activationExpiresAt: activation.expiresAt },
+          data: { userId: user.id, programId, studentNumber },
         });
         await tx.membership.create({
           data: { institutionId, userId: user.id, role: CampusRole.STUDENT, status: MembershipStatus.INVITED },
         });
         await tx.auditEvent.create({
-          data: { institutionId, actorId: session.userId, action: "identity.student.issued",
+          data: { institutionId, actorId: session.userId, action: "identity.student.roster_created",
             entityType: "StudentProfile", entityId: user.id, metadata: { studentNumber } },
         });
       });
-      return Response.json({ studentNumber, activationCode: activation.code, expiresAt: activation.expiresAt },
+      return Response.json({ studentNumber, message: "Student ID added to the college roster. The student can now submit their password for review." },
         { status: 201, headers: { "Cache-Control": "no-store" } });
     }
     if (input.kind === "staff") {
@@ -120,31 +123,56 @@ export async function POST(request: Request) {
   }
 }
 
-// Registrars can replace an expired or misplaced, unused student activation code.
+// An authorized reviewer must verify the student's identity against college
+// records before approving a pending request. Department leads are scoped to
+// the department for which they have a chair appointment.
 export async function PATCH(request: Request) {
   try {
     assertSameOrigin(request);
-    const session = await requireSession(registrarRoles);
+    const session = await requireSession(reviewRoles);
     const input = await readJsonObject(request);
     const studentNumber = requiredText(input.studentNumber, "Student ID", 2, 50);
+    const action = input.action;
+    if (action !== "approve" && action !== "reject") throw new AuthenticationError("Choose approve or reject.", 400);
+    if (action === "approve" && input.identityVerified !== true) {
+      throw new AuthenticationError("Confirm that you verified the student against official college records before approval.", 400);
+    }
     const student = await prisma.studentProfile.findFirst({
       where: { studentNumber, user: {
-        passwordHash: null,
         memberships: { some: { institutionId: session.membership.institutionId,
           role: CampusRole.STUDENT, status: MembershipStatus.INVITED } },
-      } },
-      select: { userId: true },
+      }, program: { department: { institutionId: session.membership.institutionId,
+        ...departmentRestriction(session.membership.role, session.userId) } },
+        registrationStatus: StudentRegistrationStatus.PENDING },
+      select: { userId: true, user: { select: { passwordHash: true,
+        memberships: { where: { institutionId: session.membership.institutionId,
+          role: CampusRole.STUDENT, status: MembershipStatus.INVITED }, select: { id: true }, take: 1 } } } },
     });
-    if (!student) throw new AuthenticationError("Pending student ID not found.", 404);
-    const activation = newStudentCode();
-    await prisma.$transaction([
-      prisma.studentProfile.update({ where: { userId: student.userId },
-        data: { activationCodeHash: activation.hash, activationExpiresAt: activation.expiresAt } }),
-      prisma.auditEvent.create({ data: { institutionId: session.membership.institutionId,
-        actorId: session.userId, action: "identity.student.activation_rotated",
-        entityType: "StudentProfile", entityId: student.userId } }),
-    ]);
-    return Response.json({ studentNumber, activationCode: activation.code, expiresAt: activation.expiresAt },
-      { headers: { "Cache-Control": "no-store" } });
+    const membershipId = student?.user.memberships[0]?.id;
+    if (!student || !student.user.passwordHash || !membershipId) {
+      throw new AuthenticationError("A pending registration for this college student was not found.", 404);
+    }
+    await prisma.$transaction(async (tx) => {
+      const changed = await tx.studentProfile.updateMany({ where: {
+        userId: student.userId, registrationStatus: StudentRegistrationStatus.PENDING,
+      }, data: {
+        registrationStatus: action === "approve" ? StudentRegistrationStatus.APPROVED : StudentRegistrationStatus.REJECTED,
+        registrationReviewedAt: new Date(), registrationReviewedById: session.userId,
+      } });
+      if (changed.count !== 1) throw new AuthenticationError("This registration has already been reviewed.", 409);
+      if (action === "approve") {
+        const active = await tx.membership.updateMany({ where: { id: membershipId, status: MembershipStatus.INVITED },
+          data: { status: MembershipStatus.ACTIVE } });
+        if (active.count !== 1) throw new AuthenticationError("This registration has already been reviewed.", 409);
+      } else {
+        await tx.user.update({ where: { id: student.userId }, data: { passwordHash: null } });
+      }
+      await tx.auditEvent.create({ data: {
+        institutionId: session.membership.institutionId, actorId: session.userId,
+        action: action === "approve" ? "identity.student.registration_approved" : "identity.student.registration_rejected",
+        entityType: "StudentProfile", entityId: student.userId, metadata: { studentNumber },
+      } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    return Response.json({ message: action === "approve" ? "Student registration approved. The student may sign in by ID and password." : "Request rejected. The student may submit a new request." });
   } catch (error) { return authErrorResponse(error); }
 }

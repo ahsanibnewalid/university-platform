@@ -12,6 +12,7 @@ import {
   requiredText,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { CampusRole, MembershipStatus } from "@prisma/client";
 
 export async function GET() {
   try {
@@ -89,4 +90,33 @@ export async function POST(request: Request) {
   } catch (error) {
     return authErrorResponse(error);
   }
+}
+
+// Only college leadership can appoint or replace a department chair. The
+// appointee must already hold an active department-lead role at this college.
+export async function PATCH(request: Request) {
+  try {
+    assertSameOrigin(request);
+    const session = await requireSession([CampusRole.SUPER_ADMIN, CampusRole.PRINCIPAL]);
+    const input = await readJsonObject(request);
+    const departmentId = requiredText(input.departmentId, "Department", 5, 100);
+    const chairId = input.chairId === "" || input.chairId === null ? null
+      : requiredText(input.chairId, "Department chair", 5, 100);
+    const institutionId = session.membership.institutionId;
+    const department = await prisma.department.findFirst({ where: { id: departmentId, institutionId }, select: { id: true } });
+    if (!department) throw new AuthenticationError("College department not found.", 404);
+    if (chairId) {
+      const appointment = await prisma.membership.findFirst({ where: { userId: chairId, institutionId,
+        role: { in: [CampusRole.DEPARTMENT_CHAIR, CampusRole.DEPARTMENT_HEAD] },
+        status: MembershipStatus.ACTIVE }, select: { id: true } });
+      if (!appointment) throw new AuthenticationError("Assign an active department-lead role to this employee first.", 400);
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.department.update({ where: { id: department.id }, data: { chairId } });
+      await tx.auditEvent.create({ data: { institutionId, actorId: session.userId,
+        action: "administration.department.chair_appointed", entityType: "Department",
+        entityId: department.id, metadata: { chairUserId: chairId } } });
+    });
+    return Response.json({ message: chairId ? "Department chair appointment updated." : "Department chair appointment cleared." });
+  } catch (error) { return authErrorResponse(error); }
 }

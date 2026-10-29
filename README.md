@@ -139,15 +139,18 @@ unvalidated development.
 
 6. Visit [http://localhost:3000](http://localhost:3000) and sign in using the
    authorized administrator credentials established on the server. The registrar
-   opens `/admin/onboarding` to issue student IDs/activation codes and approve
-   employee Gmail addresses. Students activate at `/register/student`, then
-   sign in by student ID and password; employees verify approved Gmail at
+   opens `/admin/onboarding` to add student IDs to the roster, review student
+   registration requests and approve employee Gmail addresses. Students submit
+   their ID and password at `/register/student`, wait for verified college
+   approval and then sign in by ID; employees verify approved Gmail at
    `/register/staff` before choosing a password.
 
-   **Never give a student activation code to someone without checking their
-   college identity.** A student number by itself does not prove ownership.
-   Activation codes expire after seven days, are displayed only when issued,
-   and can be rotated by a registrar before use.
+   **Never approve a student based only on knowing the ID number.** An appointed
+   registrar/principal or department reviewer must verify the request against
+   official college documents. The account remains inaccessible until that
+   reviewer explicitly approves it; decisions are written to the audit log.
+   Administrators can manage active staff appointments and suspend access at
+   `/admin/roles`.
 
 If an **existing** deployment was previously initialized with generic or demo
 institution branding, take an approved database backup first, then a trusted
