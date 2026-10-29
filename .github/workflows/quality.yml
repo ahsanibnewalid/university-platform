@@ -45,6 +45,13 @@ jobs:
       - run: npm run db:generate
       - name: Provision single Siddheswari College on temporary CI database
         run: npm run campus:bootstrap
+      - name: Verify first-admin recovery refuses an existing administrator
+        run: |
+          npm run campus:admin-init -- --check
+          if CAMPUS_CONFIRM_FIRST_ADMIN="Siddheswari College" CAMPUS_ADMIN_EMAIL="ci-recovery@gmail.com" npm run campus:admin-init; then
+            echo "::error::Recovery unexpectedly created a second Super Admin"
+            exit 1
+          fi
       - run: npm run test:ci
       - run: npm run build
       - name: Smoke-test public routes and anonymous access

@@ -23,6 +23,19 @@ test("single-college provisioning is server-only and fixes Siddheswari College i
   assert.ok(singleCollegeMigration.includes('CHECK ("singletonKey" = 1)'));
 });
 
+test("existing-college first-admin recovery is server-only and refuses any prior administrator", () => {
+  const initializer = read("prisma/initialize-existing-college-admin.mjs");
+  const packageJson = JSON.parse(read("package.json"));
+  assert.ok(packageJson.scripts["campus:admin-init"].includes("prisma/initialize-existing-college-admin.mjs"));
+  assert.ok(initializer.includes('args[0] === "--check"'));
+  assert.ok(initializer.includes('process.env.CAMPUS_CONFIRM_FIRST_ADMIN !== "Siddheswari College"'));
+  assert.ok(initializer.includes('role: "SUPER_ADMIN"'));
+  assert.ok(initializer.includes('action: { in: ["institution.initialized.from_server", "identity.first_super_admin.initialized"] }'));
+  assert.ok(initializer.includes('tx.user.findUnique({ where: { email }'));
+  assert.ok(initializer.includes('Prisma.TransactionIsolationLevel.Serializable'));
+  assert.ok(initializer.includes('action: "identity.first_super_admin.initialized"'));
+});
+
 test("student-ID registration is college-issued and staff signup cannot assign campus roles", () => {
   const schema = read("prisma/schema.prisma");
   const login = read("src/app/login/page.tsx");
