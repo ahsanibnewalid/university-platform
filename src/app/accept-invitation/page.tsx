@@ -65,8 +65,8 @@ function InvitationForm() {
   return (
     <main className="auth-page auth-page-centered">
       <section className="auth-card">
-        <Link className="auth-brand" href="/"><span className="brand-mark"><GraduationCap size={22} /></span><span>campus<span>hub</span></span></Link>
-        <div className="auth-copy"><h1>Accept your invitation.</h1><p>{institutionName ? `Join ${institutionName} on CampusHub.` : "Set up your campus account."} {passwordRequired ? "Choose a secure password to activate your account." : "Sign in to link this campus role to your account."}</p></div>
+        <Link className="auth-brand" href="/"><span className="brand-mark"><GraduationCap size={22} /></span><span>Siddheswari College</span></Link>
+        <div className="auth-copy"><h1>Accept your college invitation.</h1><p>{institutionName ? `Join ${institutionName}'s approved college portal.` : "Activate your invited Siddheswari College account."} {passwordRequired ? "Choose a secure password to activate your account." : "Sign in to link this campus role to your account."}</p></div>
         <form className="auth-form" onSubmit={accept}>
           {passwordRequired && <label>Choose a password<input type="password" name="password" autoComplete="new-password" minLength={12} maxLength={128} required /></label>}
           <span className="auth-help">{passwordRequired ? "Use at least 12 characters." : "Your existing password stays the same."}</span>

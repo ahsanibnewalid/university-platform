@@ -2,28 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
-import { ArrowRight, GraduationCap, LoaderCircle, ShieldCheck } from "lucide-react";
+import { FormEvent, useState } from "react";
+import { ArrowLeft, ArrowRight, BookOpen, GraduationCap, LoaderCircle, LockKeyhole, ShieldCheck, Users } from "lucide-react";
 
-type Mode = "login" | "setup" | "reset";
+type Mode = "login" | "reset";
 
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("login");
-  const [setupAvailable, setSetupAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    fetch("/api/auth/bootstrap")
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Could not check setup status.");
-        const data = (await response.json()) as { setupAvailable?: boolean };
-        setSetupAvailable(data.setupAvailable === true);
-      })
-      .catch(() => setError("Unable to reach the CampusHub server."));
-  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,12 +24,7 @@ export default function LoginPage() {
     for (const [key, value] of form.entries()) {
       if (typeof value === "string") payload[key] = value;
     }
-    const endpoint =
-      mode === "setup"
-        ? "/api/auth/bootstrap"
-        : mode === "reset"
-          ? "/api/auth/password-reset"
-          : "/api/auth/login";
+    const endpoint = mode === "reset" ? "/api/auth/password-reset" : "/api/auth/login";
     try {
       const response = await fetch(endpoint, {
         method: "POST",
@@ -67,42 +51,30 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
+    <main className="auth-page auth-page-college">
       <section className="auth-card">
         <Link className="auth-brand" href="/">
           <span className="brand-mark"><GraduationCap size={22} /></span>
-          <span>campus<span>hub</span></span>
+          <span className="auth-brand-name">Siddheswari College<small>OFFICIAL COLLEGE PORTAL · DHAKA</small></span>
         </Link>
         <div className="auth-copy">
-          <span className="auth-kicker"><ShieldCheck size={14} /> A connected campus</span>
-          <h1>{mode === "setup" ? "Set up your institution." : mode === "reset" ? "Reset your password." : "Welcome back."}</h1>
+          <span className="auth-kicker"><ShieldCheck size={14} /> Verified college accounts only</span>
+          <h1>{mode === "reset" ? "Reset your password" : "Welcome back to Siddheswari."}</h1>
           <p>
-            {mode === "setup"
-              ? "Create your first institution and super-admin account. Setup requires the private bootstrap secret from your environment."
-              : mode === "reset"
-                ? "We’ll email a single-use password reset link if this account exists."
-                : "Sign in to your university community, classes, and campus life."}
+            {mode === "reset"
+              ? "Enter your college account email. If it exists, we’ll send a single-use recovery link."
+              : "Sign in to access your courses, results, attendance, payments and campus services."}
           </p>
         </div>
 
         <form className="auth-form" onSubmit={submit}>
-          {mode === "setup" && (
-            <>
-              <label>Institution name<input name="institutionName" autoComplete="organization" minLength={2} maxLength={120} required /></label>
-              <label>Institution URL name or website<input name="institutionSlug" autoCapitalize="none" autoCorrect="off" placeholder="siddheswari-college or https://scd.edu.bd" required /></label>
-              <span className="auth-help">Use a short slug or your institution&apos;s website URL.</span>
-              <label>Your name<input name="name" autoComplete="name" minLength={2} maxLength={120} required /></label>
-            </>
-          )}
-          <label>Email address<input name="email" type="email" autoComplete="email" maxLength={254} required /></label>
-          {mode === "setup" && <label>Bootstrap secret<input name="bootstrapSecret" type="password" autoComplete="off" minLength={24} required /></label>}
-          {mode !== "reset" && <label>Password<input name="password" type="password" autoComplete={mode === "setup" ? "new-password" : "current-password"} minLength={12} maxLength={128} required /></label>}
-          {mode === "setup" && <span className="auth-help">Use at least 12 characters. This account will receive the first super-admin role.</span>}
+          <label>College email address<input name="email" type="email" autoComplete="email" maxLength={254} placeholder="you@example.com" required /></label>
+          {mode === "login" && <label>Password<input name="password" type="password" autoComplete="current-password" minLength={12} maxLength={128} placeholder="Enter your password" required /></label>}
           {error && <div className="auth-error" role="alert">{error}</div>}
           {message && <div className="auth-success" role="status">{message}</div>}
           <button className="auth-submit" disabled={loading}>
             {loading ? <LoaderCircle className="spin-icon" size={17} /> : null}
-            {mode === "setup" ? "Create institution" : mode === "reset" ? "Send reset link" : "Sign in"}
+            {mode === "reset" ? "Send reset link" : "Sign in to college portal"}
             {!loading && <ArrowRight size={16} />}
           </button>
         </form>
@@ -114,21 +86,17 @@ export default function LoginPage() {
           {mode === "reset" && (
             <button onClick={() => { setMode("login"); setError(""); setMessage(""); }}>Back to sign in</button>
           )}
-          {mode === "login" && setupAvailable && (
-            <button onClick={() => { setMode("setup"); setError(""); setMessage(""); }}>Set up a new institution</button>
-          )}
         </div>
 
-        <p className="auth-legal">By continuing, you agree to your institution&apos;s acceptable-use and privacy policies.</p>
-        <p className="auth-demo-note">Access is provided by your institution. Ask an administrator for an account invitation.</p>
-        <div className="auth-footer"><Link href="/accept-invitation">Have an invitation?</Link><span>CampusHub · A better campus, together.</span></div>
+        <div className="auth-access-note"><LockKeyhole size={17}/><p>This portal serves <strong>Siddheswari College only.</strong> Accounts are created or invited by authorized college staff. Public institution registration is disabled.</p></div>
+        <div className="auth-footer"><Link href="/"><ArrowLeft size={14}/> College website</Link><Link href="/accept-invitation">Accept an invitation <ArrowRight size={14}/></Link></div>
       </section>
       <aside className="auth-aside">
         <div className="aside-orbit orbit-one" /><div className="aside-orbit orbit-two" />
-        <span className="aside-badge"><GraduationCap size={16} /> NORTHSTAR CAMPUS</span>
-        <h2>More than a university portal.</h2>
-        <p>One welcoming home for learning, people, opportunities, and everything happening on campus.</p>
-        <div className="aside-feature-list"><span>01 <b>Learn together</b></span><span>02 <b>Find your community</b></span><span>03 <b>Make campus yours</b></span></div>
+        <span className="aside-badge"><GraduationCap size={16} /> সিদ্ধেশ্বরী কলেজ · ঢাকা</span>
+        <h2>One college.<br/>Every academic journey.</h2>
+        <p>HSC education and National University-affiliated higher education, connected through one secure Siddheswari College portal.</p>
+        <div className="auth-aside-features"><span><BookOpen size={22}/><b>Academic progress</b><small>Courses, attendance and results</small></span><span><Users size={22}/><b>Our community</b><small>Students, parents and teachers</small></span><span><ShieldCheck size={22}/><b>Trusted access</b><small>Roles approved by the college</small></span></div>
       </aside>
     </main>
   );

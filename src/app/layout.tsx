@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CampusHub — Your campus, connected",
+  title: "Siddheswari College | Official Campus Portal",
   description:
-    "The digital home for campus communities, conversations, and events.",
+    "Siddheswari College, Dhaka: HSC and National University-affiliated academic services for students, teachers and guardians.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

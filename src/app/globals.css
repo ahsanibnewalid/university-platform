@@ -2467,6 +2467,208 @@ select:focus-visible {
   font-size: 9px;
 }
 
+/* Siddheswari College's sign-in screen is a single-institution portal, not a SaaS setup page. */
+.auth-page-college {
+  grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.02fr);
+  gap: 18px;
+  padding: 18px;
+  background: #f2f6fc;
+}
+
+.auth-page-college .auth-card {
+  width: min(560px, 100%);
+  padding: clamp(28px, 5vw, 54px);
+  border: 1px solid #e3ebf5;
+  border-radius: 24px;
+  box-shadow: 0 18px 60px rgb(19 54 106 / 7%);
+}
+
+.auth-page-college .brand-mark {
+  background: #1758b7;
+  color: white;
+}
+
+.auth-page-college .auth-brand {
+  align-items: center;
+  margin-bottom: clamp(35px, 7vh, 74px);
+  color: #102e59;
+  font-size: 21px;
+  letter-spacing: -0.6px;
+}
+
+.auth-page-college .auth-brand-name {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-page-college .auth-brand-name small {
+  color: #52769f;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.17em;
+}
+
+.auth-page-college .auth-kicker {
+  color: #165ab1;
+  font-size: 10px;
+}
+
+.auth-page-college .auth-copy h1 {
+  max-width: 470px;
+  margin: 18px 0 14px;
+  color: #102e59;
+  font-size: clamp(31px, 3.5vw, 44px);
+  font-weight: 800;
+  letter-spacing: -1.4px;
+}
+
+.auth-page-college .auth-copy p {
+  max-width: 430px;
+  color: #5d718c;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.auth-page-college .auth-form {
+  gap: 18px;
+}
+
+.auth-page-college .auth-form label {
+  color: #223f64;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-page-college .auth-form input {
+  height: 52px;
+  padding: 0 16px;
+  border-color: #cedbec;
+  border-radius: 11px;
+  background: #fbfdff;
+  color: #102e59;
+  font-size: 14px;
+}
+
+.auth-page-college .auth-form input:focus {
+  border-color: #1758b7;
+  outline: 3px solid #dceafb;
+}
+
+.auth-page-college .auth-submit {
+  min-height: 52px;
+  border-radius: 12px;
+  background: #1758b7;
+  font-size: 14px;
+}
+
+.auth-page-college .auth-submit:hover:not(:disabled) {
+  background: #0c418d;
+}
+
+.auth-page-college .auth-links button,
+.auth-page-college .auth-footer a {
+  color: #1758b7;
+  font-size: 13px;
+}
+
+.auth-page-college .auth-access-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 30px;
+  padding: 16px;
+  border: 1px solid #d8e8fb;
+  border-radius: 13px;
+  background: #f0f7ff;
+  color: #385b83;
+}
+
+.auth-page-college .auth-access-note svg {
+  flex: none;
+  margin-top: 2px;
+  color: #1758b7;
+}
+
+.auth-page-college .auth-access-note p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.auth-page-college .auth-footer {
+  margin-top: 25px;
+  border-color: #e6edf6;
+}
+
+.auth-page-college .auth-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-page-college .auth-aside {
+  background: radial-gradient(ellipse at 78% 22%, rgb(119 205 251 / 23%), transparent 36%), linear-gradient(145deg, #122b59, #17488a 60%, #217bb4);
+}
+
+.auth-page-college .aside-badge {
+  color: #dcefff;
+  font-size: 11px;
+}
+
+.auth-page-college .auth-aside h2 {
+  max-width: 580px;
+  font-family: inherit;
+  font-size: clamp(38px, 4.5vw, 66px);
+  font-weight: 850;
+  letter-spacing: -2.6px;
+  line-height: 1.08;
+}
+
+.auth-page-college .auth-aside > p {
+  max-width: 540px;
+  margin: 25px 0 32px;
+  color: #d9eafc;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.auth-aside-features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.auth-aside-features > span {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 17px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 9%);
+}
+
+.auth-aside-features svg { color: #b6e5fb; }
+.auth-aside-features b { font-size: 12px; }
+.auth-aside-features small { color: #c9def6; font-size: 11px; line-height: 1.5; }
+
+@media (max-width: 1000px) {
+  .auth-page-college { grid-template-columns: minmax(0, 1fr); }
+  .auth-page-college .auth-aside { min-height: 410px; padding: 36px; }
+  .auth-page-college .auth-card { padding: 35px; }
+  .auth-page-college .auth-brand { margin-bottom: 38px; }
+}
+
+@media (max-width: 580px) {
+  .auth-page-college { padding: 10px; gap: 12px; }
+  .auth-page-college .auth-card { padding: 26px 22px; }
+  .auth-page-college .auth-aside { padding: 26px; }
+  .auth-page-college .auth-aside h2 { font-size: 34px; }
+  .auth-aside-features { grid-template-columns: 1fr; }
+  .auth-aside-features > span { grid-template-columns: 22px 1fr; gap: 4px 10px; }
+  .auth-aside-features > span small { grid-column: 2; }
+}
+
 .aside-feature-list b {
   color: rgb(255 255 255 / 91%);
   font-size: 10px;
