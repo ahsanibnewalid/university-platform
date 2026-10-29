@@ -33,6 +33,7 @@ await request("/api/dashboard", 401);
 await request("/api/announcements", 401);
 await request("/api/guardians", 401);
 await request("/api/admin/audit-events", 401);
+await request("/api/admin/roles", 401);
 await request("/api/auth/bootstrap", 404);
 
 // Explicit opt-in. Never bootstrap or seed a real college database from a smoke test.
@@ -90,18 +91,24 @@ if (process.env.SMOKE_AUTHENTICATED === "1") {
     const department = await prisma.department.create({ data: { institutionId: current.institution.id, code: "CSE", name: "Computer Science" } });
     const program = await prisma.program.create({ data: { departmentId: department.id, code: "HSC-CI", name: "CI HSC", level: "HSC", programType: "HSC" } });
     await prisma.studentProfile.create({ data: { userId: student.id, studentNumber: `SMOKE-${unique}`, programId: program.id } });
-    // A student cannot self-assign a record or staff role. The college issues
-    // the ID and a one-time code, after which students choose their password.
+    // Students can choose a password for a college-rostered ID, but never
+    // activate their own membership without authorized identity review.
     await api("/api/invitations", { token: adminToken, method: "POST", status: 410, body: {} });
     await api("/api/admin/onboarding", { method: "POST", status: 401,
       body: { kind: "staff", name: "Fake principal", email: "fake@gmail.com", role: "PRINCIPAL" } });
     const issued = await api("/api/admin/onboarding", { token: adminToken, method: "POST", status: 201,
       body: { kind: "student", name: "College Approved Student", studentNumber: `ACTIVATE-${unique}`, programId: program.id } });
-    assert.ok(issued.activationCode?.length >= 20);
-    await api("/api/auth/student-register", { method: "POST", status: 400,
-      body: { studentNumber: `ACTIVATE-${unique}`, activationCode: "wrong-code-123456789012", password } });
-    await api("/api/auth/student-register", { method: "POST",
-      body: { studentNumber: `ACTIVATE-${unique}`, activationCode: issued.activationCode, password } });
+    assert.ok(issued.message.includes("roster"));
+    await api("/api/auth/student-register", { method: "POST", status: 202,
+      body: { studentNumber: `UNKNOWN-${unique}`, password } });
+    await api("/api/auth/student-register", { method: "POST", status: 202,
+      body: { studentNumber: `ACTIVATE-${unique}`, password } });
+    await api("/api/mobile/auth/login", { method: "POST", status: 403,
+      body: { identifier: `ACTIVATE-${unique}`, password } });
+    await api("/api/admin/onboarding", { token: adminToken, method: "PATCH", status: 400,
+      body: { action: "approve", studentNumber: `ACTIVATE-${unique}` } });
+    await api("/api/admin/onboarding", { token: adminToken, method: "PATCH",
+      body: { action: "approve", identityVerified: true, studentNumber: `ACTIVATE-${unique}` } });
     const activatedToken = await signin(`ACTIVATE-${unique}`);
     const activatedSession = await api("/api/auth/session", { token: activatedToken });
     assert.equal(activatedSession.role, "STUDENT");
@@ -130,6 +137,34 @@ if (process.env.SMOKE_AUTHENTICATED === "1") {
       body: { token: emailToken, password } });
     const approvedStaffToken = await signin(staffEmail);
     assert.equal((await api("/api/auth/session", { token: approvedStaffToken })).role, "TEACHER");
+    const existingRoles = await api("/api/admin/roles", { token: adminToken });
+    assert.ok(existingRoles.memberships.some((item) => item.role === "SUPER_ADMIN"));
+    await api("/api/admin/roles", { token: approvedStaffToken, method: "POST", status: 403,
+      body: { userId: authorizedStaff.id, role: "PRINCIPAL" } });
+    const extraRole = await api("/api/admin/roles", { token: adminToken, method: "POST", status: 201,
+      body: { userId: authorizedStaff.id, role: "LIBRARIAN" } });
+    const chairRole = await api("/api/admin/roles", { token: adminToken, method: "POST", status: 201,
+      body: { userId: authorizedStaff.id, role: "DEPARTMENT_CHAIR" } });
+    await api("/api/departments", { token: approvedStaffToken, method: "PATCH", status: 403,
+      body: { departmentId: department.id, chairId: authorizedStaff.id } });
+    await api("/api/departments", { token: adminToken, method: "PATCH",
+      body: { departmentId: department.id, chairId: authorizedStaff.id } });
+    await api("/api/auth/session", { token: approvedStaffToken, method: "PUT",
+      body: { membershipId: chairRole.membership.id } });
+    await api("/api/admin/onboarding", { token: adminToken, method: "POST", status: 201,
+      body: { kind: "student", name: "Chair-reviewed Student", studentNumber: `CHAIR-${unique}`, programId: program.id } });
+    await api("/api/auth/student-register", { method: "POST", status: 202,
+      body: { studentNumber: `CHAIR-${unique}`, password } });
+    await api("/api/admin/onboarding", { token: approvedStaffToken, method: "PATCH",
+      body: { action: "approve", identityVerified: true, studentNumber: `CHAIR-${unique}` } });
+    const chairApprovedToken = await signin(`CHAIR-${unique}`);
+    assert.equal((await api("/api/auth/session", { token: chairApprovedToken })).role, "STUDENT");
+    await api("/api/admin/roles", { token: adminToken, method: "PATCH", status: 403,
+      body: { membershipId: current.membershipId, status: "SUSPENDED" } });
+    await api("/api/admin/roles", { token: adminToken, method: "PATCH",
+      body: { membershipId: extraRole.membership.id, status: "SUSPENDED" } });
+    await api("/api/admin/roles", { token: adminToken, method: "PATCH",
+      body: { membershipId: extraRole.membership.id, status: "ACTIVE" } });
     const term = await prisma.academicTerm.create({ data: {
       institutionId: current.institution.id, name: `CI term ${unique}`,
       startsAt: new Date("2026-09-01T00:00:00Z"), endsAt: new Date("2027-03-01T00:00:00Z"), status: "ACTIVE",

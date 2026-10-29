@@ -2706,7 +2706,7 @@ select:focus-visible {
 
 .hub-brand {
   display: flex;
-  flex: 0 0 222px;
+  flex: 0 0 260px;
   align-items: center;
   gap: 9px;
   padding: 0;
@@ -2714,7 +2714,7 @@ select:focus-visible {
   background: transparent;
   color: #282d27;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 750;
   letter-spacing: -0.7px;
 }
@@ -4237,7 +4237,27 @@ select:focus-visible {
 .college-onboarding-list li {display: flex; gap: 12px; justify-content: space-between; align-items: center; padding: 13px; border: 1px solid #e1ebf7; border-radius: 10px;}
 .college-onboarding-list li span {display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere;}
 .college-onboarding-list li small {color: #6b80a0;}
+.college-review-row {flex-wrap: wrap; align-items: flex-start !important;}
+.college-review-actions {display: flex; flex-wrap: wrap; gap: 8px; align-items: center; width: 100%;}
+.college-review-actions label {display: inline-flex; align-items: center; gap: 8px; color: #254975; font-size: 12px; font-weight: 650; margin-right: auto;}
+.college-review-actions input {accent-color: #27634a; width: 16px; height: 16px;}
+.college-onboarding-list button:disabled {opacity: .5; cursor: not-allowed;}
+.college-membership-list {max-height: 620px; overflow: auto;}
+.college-membership-list li {align-items: flex-start;}
+.college-membership-list li > span {flex: 1;}
+.college-admin-metrics {display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 26px 0;}
+.college-admin-metrics > div {display: grid; gap: 6px; background: #fff; border: 1px solid #dce7f7; border-radius: 15px; padding: 20px;}
+.college-admin-metrics b {color: #133b70; font-size: 27px; line-height: 1.2;}
+.college-admin-metrics small {color: #597391; font-weight: 650;}
+.college-admin-grid {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px;}
+.college-admin-grid a {background: #fff; padding: 27px; border: 1px solid #dce7f7; border-radius: 18px; color: #174b7e; text-decoration: none; display: grid; gap: 10px; transition: border-color .18s, transform .18s;}
+.college-admin-grid a:hover {border-color: #6eac83; transform: translateY(-2px);}
+.college-admin-grid h2 {font-size: 19px; margin: 0; color: #133b70;}
+.college-admin-grid p {color: #5f7388; margin: 0; line-height: 1.55;}
+.college-admin-grid a span {display: flex; align-items: center; gap: 8px; font-weight: 750; color: #32704f;}
 @media (max-width: 800px) {
   .college-onboarding-grid {grid-template-columns: 1fr;}
+  .college-admin-grid {grid-template-columns: 1fr;}
+  .college-admin-metrics {grid-template-columns: repeat(2, minmax(0, 1fr));}
   .auth-role-switch button {font-size: 12px;}
 }

@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, ClipboardCopy, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 
 type Program = { id: string; name: string; code: string; department: { name: string } };
-type PendingStudent = { studentNumber: string; activationExpiresAt: string | null; user: { name: string } };
+type PendingStudent = { studentNumber: string; registrationStatus: "NOT_REQUESTED" | "PENDING" | "REJECTED"; registrationRequestedAt: string | null; program: { name: string }; user: { name: string } };
 type PendingStaff = { id: string; role: string; user: { name: string; email: string } };
 type Data = { programs: Program[]; students: PendingStudent[]; staff: PendingStaff[]; canApproveStaff?: boolean };
 const employeeRoles = ["TEACHER", "FACULTY", "STAFF", "OFFICE_STAFF", "DEPARTMENT_HEAD", "DEPARTMENT_CHAIR", "PRINCIPAL", "LIBRARIAN", "HR", "EXAM_CONTROLLER", "ACCOUNTANT", "FINANCE_ADMIN"];
@@ -14,7 +14,7 @@ export default function CollegeOnboardingPage() {
   const [data, setData] = useState<Data>({ programs: [], students: [], staff: [] });
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [issued, setIssued] = useState<{ studentNumber: string; activationCode: string; expiresAt: string } | null>(null);
+  const [verified, setVerified] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -28,17 +28,15 @@ export default function CollegeOnboardingPage() {
   }, [load]);
 
   async function call(method: "POST" | "PATCH", payload: Record<string, unknown>) {
-    setBusy(true); setError(""); setMessage(""); setIssued(null);
+    setBusy(true); setError(""); setMessage("");
     try {
       const response = await fetch("/api/admin/onboarding", {
         method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
-      const result = await response.json() as { error?: string; message?: string; studentNumber?: string; activationCode?: string; expiresAt?: string };
+      const result = await response.json() as { error?: string; message?: string };
       if (!response.ok) throw new Error(result.error ?? "Onboarding could not be completed.");
-      if (result.activationCode && result.studentNumber && result.expiresAt) {
-        setIssued({ studentNumber: result.studentNumber, activationCode: result.activationCode, expiresAt: result.expiresAt });
-        setMessage("Activation code generated. Give it only to the verified student; it will not be displayed again.");
-      } else setMessage(result.message ?? "Staff Gmail approved.");
+      setMessage(result.message ?? "College record updated.");
+      setVerified([]);
       setData(await load());
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Onboarding failed."); }
     finally { setBusy(false); }
@@ -54,20 +52,14 @@ export default function CollegeOnboardingPage() {
   return <main className="college-onboarding-page"><div className="college-onboarding-shell">
     <Link className="college-back-link" href="/dashboard"><ArrowLeft size={16}/> Dashboard</Link>
     <span className="college-auth-kicker"><ShieldCheck size={18}/> Siddheswari College · Registrar workspace</span>
-    <h1>Account onboarding</h1>
-    <p>Create a college-issued student ID with a one-time activation code, or pre-approve a staff Gmail address. No public registration can create a principal or teacher role.</p>
+    <h1>Registration approvals</h1>
+    <p>Add student IDs to the official roster, review student password-registration requests, and preapprove employee Gmail accounts. Every approval is role-restricted and audited.</p>
     {error && <p className="auth-error" role="alert">{error}</p>}
     {message && <p className="auth-success" role="status">{message}</p>}
-    {issued && <div className="college-issued-code" role="status">
-      <b>Student ID: {issued.studentNumber}</b>
-      <code>{issued.activationCode}</code>
-      <small>Expires {new Date(issued.expiresAt).toLocaleString("en-BD")}. Share securely with the correct student.</small>
-      <button onClick={() => void navigator.clipboard.writeText(`${issued.studentNumber}\n${issued.activationCode}`)}><ClipboardCopy size={15}/> Copy ID and code</button>
-    </div>}
     <div className="college-onboarding-grid">
       <section className="college-auth-panel">
-        <h2>Issue student ID</h2>
-        <p>The student uses this ID and one-time code to choose a password. Gmail is collected later.</p>
+        <h2>College student roster</h2>
+        <p>Add the student&apos;s official ID and program first. The student then submits their ID and password for an authorized reviewer to approve.</p>
         <form className="college-auth-form" onSubmit={studentSubmit}>
           <label>Student name<input name="name" minLength={2} maxLength={120} required/></label>
           <label>College-issued student ID<input name="studentNumber" minLength={2} maxLength={50} required/></label>
@@ -75,10 +67,18 @@ export default function CollegeOnboardingPage() {
             <option value="" disabled>Select program</option>
             {data.programs.map((program) => <option key={program.id} value={program.id}>{program.name} ({program.code}) · {program.department.name}</option>)}
           </select></label>
-          <button className="auth-submit" disabled={busy || !data.programs.length}>Issue student activation code</button>
+          <button className="auth-submit" disabled={busy || !data.programs.length}>Add student to roster</button>
         </form>
-        <h3>Pending students</h3>
-        <ul className="college-onboarding-list">{data.students.map((student) => <li key={student.studentNumber}><span><b>{student.user.name}</b><small>{student.studentNumber}</small></span><button disabled={busy} onClick={() => void call("PATCH", { studentNumber: student.studentNumber })}>Replace code</button></li>)}</ul>
+        {!data.programs.length && <p className="college-auth-note">Create a department and program in the Administration dashboard before adding students.</p>}
+        <h3>Student registration review</h3>
+        <ul className="college-onboarding-list">{data.students.map((student) => <li key={student.studentNumber} className="college-review-row">
+          <span><b>{student.user.name}</b><small>{student.studentNumber} · {student.program.name} · {student.registrationStatus.replaceAll("_", " ")}</small></span>
+          {student.registrationStatus === "PENDING" && <div className="college-review-actions">
+            <label><input type="checkbox" checked={verified.includes(student.studentNumber)} onChange={(event) => setVerified((current) => event.target.checked ? [...current, student.studentNumber] : current.filter((id) => id !== student.studentNumber))}/> Checked official student identity</label>
+            <button disabled={busy || !verified.includes(student.studentNumber)} onClick={() => void call("PATCH", { action: "approve", studentNumber: student.studentNumber, identityVerified: true })}>Approve</button>
+            <button disabled={busy} onClick={() => { if (window.confirm(`Reject registration request for ${student.studentNumber}?`)) void call("PATCH", { action: "reject", studentNumber: student.studentNumber }); }}>Reject</button>
+          </div>}
+        </li>)}</ul>
       </section>
       <section className="college-auth-panel">
         <h2>Approve staff Gmail</h2>

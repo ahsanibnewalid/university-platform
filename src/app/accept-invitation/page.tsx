@@ -4,7 +4,7 @@ export default function RetiredInvitationPage() {
   return <main className="college-auth-simple"><section className="college-auth-panel">
     <span className="college-auth-kicker">Siddheswari College · Official access</span>
     <h1>Account invitations have been replaced.</h1>
-    <p>Students now activate a college-issued student ID and password. Teachers, staff and college leadership register through a pre-approved Gmail address.</p>
+    <p>Students now request access with their college-issued ID and password, then receive approval from an authorized college reviewer. Teachers, staff and college leadership register through a pre-approved Gmail address.</p>
     <div className="college-auth-form">
       <Link className="auth-submit" href="/register/student">Student ID registration</Link>
       <Link className="college-back-link" href="/register/staff">Staff / Teacher Gmail registration</Link>

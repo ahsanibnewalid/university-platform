@@ -36,21 +36,30 @@ test("existing-college first-admin recovery is server-only and refuses any prior
   assert.ok(initializer.includes('action: "identity.first_super_admin.initialized"'));
 });
 
-test("student-ID registration is college-issued and staff signup cannot assign campus roles", () => {
+test("student-ID registration requires college role approval and staff signup cannot assign campus roles", () => {
   const schema = read("prisma/schema.prisma");
   const login = read("src/app/login/page.tsx");
   const auth = read("src/lib/password-login.ts");
   const staff = read("src/app/api/auth/staff-register/route.ts");
   const student = read("src/app/api/auth/student-register/route.ts");
   const registrar = read("src/app/api/admin/onboarding/route.ts");
+  const roleApi = read("src/app/api/admin/roles/route.ts");
+  const dashboard = read("src/app/dashboard/platform-dashboard.tsx");
   const invitation = read("src/app/api/invitations/route.ts");
   assert.ok(schema.includes("activationCodeHash"));
+  assert.ok(schema.includes("StudentRegistrationStatus"));
   assert.ok(schema.includes("IdentityActivationPurpose"));
   assert.ok(login.includes('name="identifier"'));
   assert.ok(!login.includes('href="/accept-invitation"'));
   assert.ok(auth.includes("studentProfile.findUnique"));
-  assert.ok(student.includes("activationCodeHash: tokenHash"));
-  assert.ok(registrar.includes("requireSession(registrarRoles)"));
+  assert.ok(student.includes("StudentRegistrationStatus.PENDING"));
+  assert.ok(!student.includes("activationCode:"));
+  assert.ok(registrar.includes("requireSession(reviewRoles)"));
+  assert.ok(registrar.includes("identityVerified"));
+  assert.ok(registrar.includes("registration_approved"));
+  assert.ok(roleApi.includes("requireSession(managers)"));
+  assert.ok(roleApi.includes("target.role === CampusRole.SUPER_ADMIN"));
+  assert.ok(dashboard.includes("Siddheswari <span>College</span>"));
   assert.ok(staff.includes("MembershipStatus.INVITED"));
   assert.ok(invitation.includes("status: 410"));
 });
