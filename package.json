@@ -15,6 +15,7 @@
     "test:ci": "npm run lint && npm run type-check && npm run test",
     "db:seed": "prisma db seed",
     "campus:bootstrap": "node --env-file-if-exists=.env.local prisma/bootstrap-college.mjs",
+    "campus:admin-init": "node --env-file-if-exists=.env --env-file-if-exists=.env.local prisma/initialize-existing-college-admin.mjs",
     "campus:rebrand": "node --env-file-if-exists=.env.local prisma/rebrand-college.mjs"
   },
   "dependencies": {

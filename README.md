@@ -123,6 +123,14 @@ unvalidated development.
    exists; it never resets or replaces existing accounts. **No public setup
    endpoint or default administrator password exists.**
 
+   If the college **already exists but has never had a Super Admin**, do not
+   use bootstrap. After backing up the database, run the server-only read-only
+   check `npm run campus:admin-init -- --check`. If it reports zero existing
+   administrators and zero previous initialization events, an authorized
+   operator can use `npm run campus:admin-init` with a new, approved Gmail and
+   privately entered password. See
+   [the existing-college administrator runbook](docs/DEPLOYMENT_RUNBOOK.md#existing-college-without-an-initial-super-administrator).
+
 5. Start the development server:
 
    ```bash

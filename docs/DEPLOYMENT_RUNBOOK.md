@@ -31,6 +31,35 @@ an existing database. If a previously installed college has demo branding,
 verify a backup and use the explicitly confirmed `npm run campus:rebrand`
 maintenance command. These operations never create a second college.
 
+#### Existing college without an initial super administrator
+
+If an existing, backed-up database contains the single, correctly named
+Siddheswari College but was installed before an administrator was created,
+an authorized server operator can run `npm run campus:admin-init -- --check`.
+This read-only command reports whether any Super Admin membership or earlier
+administrator initialization audit record exists. Do not run the normal
+`campus:bootstrap` against an existing database.
+
+Only when both counts are **zero**, the operator may run the server-only
+`npm run campus:admin-init` command with the authorized person's Gmail,
+name, a privately entered password and an explicit college confirmation:
+
+```bash
+export CAMPUS_ADMIN_NAME="Approved Administrator"
+export CAMPUS_ADMIN_EMAIL="approved.account@gmail.com"
+export CAMPUS_CONFIRM_FIRST_ADMIN="Siddheswari College"
+read -rsp 'New administrator password (12+ characters): ' CAMPUS_ADMIN_PASSWORD
+echo
+export CAMPUS_ADMIN_PASSWORD
+npm run campus:admin-init
+unset CAMPUS_ADMIN_PASSWORD CAMPUS_CONFIRM_FIRST_ADMIN CAMPUS_ADMIN_NAME CAMPUS_ADMIN_EMAIL
+```
+
+Never paste a password into commands, logs, support chats, or `.env` files.
+This operation cannot upgrade an existing user or issue a second administrator
+if the college already has an administrator or prior initialization audit.
+The resulting user must sign in at `/login`; do so only after HTTPS is live.
+
 ### Student ID and employee email onboarding
 
 1. College management approves the registrar or principal accounts first.
