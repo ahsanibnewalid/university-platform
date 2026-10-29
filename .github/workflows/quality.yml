@@ -39,6 +39,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm audit --audit-level=high
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run db:generate
